@@ -2,6 +2,12 @@
 #define __UBR_PRIVATE_H
 
 #include <linux/bitmap.h>
+#include <linux/slab.h>
+
+#include <net/rtnetlink.h>
+
+struct ubr_dst;
+
 
 
 /* struct ubr_addr { */
@@ -74,9 +80,14 @@ struct ubr_switchdev_domain {
 	struct ubr_v *members;
 };
 
+struct ubr_cb;
+
 struct ubr_port {
 	struct ubr *ubr;
+	struct net_device *dev;
 	int id;
+
+	struct ubr_cb *ingress_cb;
 
 	/* struct ubr_vlan *pvlan; */
 	/* enum ubr_vlan_mode vlan_mode:1; */
@@ -84,39 +95,92 @@ struct ubr_port {
 	struct rcu_head rcu;
 };
 
+static inline struct ubr_port *ubr_port_get_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler_data);
+}
+
+static inline struct ubr_port *ubr_port_get_rtnl(const struct net_device *dev)
+{
+	return rtnl_dereference(dev->rx_handler_data);
+}
+
 struct ubr {
 	struct net_device *dev;
 
-	struct net_device **port_devs;
 	struct ubr_port* ports;
 	size_t ports_max;
-	size_t ports_now;
 
-	unsigned long *ports_busy;
+	struct ubr_dst *active;
 	/* struct rhashtable *vlans; */
 	/* struct rhashtable *fdbs; */
 	/* struct rhashtable *stpdbs; */
 };
 
-#define ubr_foreach(_ubr, _mask, _id) \
-	for_each_set_bit(_id, (_mask), (_ubr)->ports_max)
 
-#define ubr_port_foreach(_ubr, _id) \
-	ubr_foreach(_ubr, (_ubr)->ports_busy, _id)
+enum ubr_dst_type {
+	UBR_DST_DROP,
+	UBR_DST_ONE,
+	UBR_DST_MANY
+};
 
-static inline unsigned long *ubr_mask_alloc(struct ubr *ubr)
+struct ubr_dst {
+	enum ubr_dst_type type;
+
+	union {
+		int            port;
+		unsigned long ports[0];
+	};
+};
+
+static inline enum ubr_dst_type ubr_dst_and(struct ubr *ubr,
+					    struct ubr_dst *dst,
+					    struct ubr_dst *mask)
 {
-	return bitmap_zalloc(ubr->ports_max, 0);
+	if (dst->type == UBR_DST_MANY && mask->type == UBR_DST_MANY) {
+		bitmap_and(dst->ports, dst->ports, mask->ports,
+			   ubr->ports_max);
+		return UBR_DST_MANY;
+	}
+
+	return (dst->type = UBR_DST_DROP);
 }
 
-static inline void ubr_mask_free(unsigned long *mask)
+struct ubr_cb {
+	struct ubr_dst dst;
+};
+#define ubr_cb(_skb) ((struct ubr_cb *)(_skb)->cb)
+
+#define ubr_vec_foreach(_ubr, _vec, _id) \
+	for_each_set_bit(_id, (_vec), (_ubr)->ports_max)
+
+#define ubr_port_foreach(_ubr, _id) \
+	ubr_vec_foreach(_ubr, (_ubr)->active->ports, _id)
+
+
+#define ubr_vec_size(_ubr) \
+	(BITS_TO_LONGS((_ubr)->ports_max) * sizeof(unsigned long))
+
+#define ubr_vec_sizeof(_ubr, _obj) \
+	(sizeof(_obj) + ubr_vec_size(_ubr))
+
+static inline void *ubr_alloc_with_vec(struct ubr *ubr, size_t size, gfp_t flags)
 {
-	bitmap_free(mask);
+	size += ubr_vec_size(ubr);
+	return kmalloc(size, flags);
+}
+
+static inline void *ubr_zalloc_with_vec(struct ubr *ubr, size_t size, gfp_t flags)
+{
+	return ubr_alloc_with_vec(ubr, size, flags | __GFP_ZERO);
 }
 
 
 /* ubr-dev.c */
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
+
+/* ubr-forward.c */
+void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 
 /* ubr-port.c */
 struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev);

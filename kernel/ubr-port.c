@@ -7,24 +7,28 @@
 
 #include "ubr-private.h"
 
-rx_handler_result_t ubr_port_lower_recv(struct sk_buff **pskb)
+static rx_handler_result_t ubr_port_rx_handler(struct sk_buff **pskb)
 {
+	struct sk_buff *skb = *pskb;
+	struct ubr_port *p = ubr_port_get_rcu(skb->dev);
+	struct ubr_cb *cb = ubr_cb(skb);
+
+	memcpy(cb, p->ingress_cb, ubr_vec_sizeof(p->ubr, *cb));
+	ubr_forward(p->ubr, skb);	
 	return RX_HANDLER_CONSUMED;
 }
 
 static void __ubr_port_cleanup(struct rcu_head *head)
 {
 	struct ubr_port *p = container_of(head, struct ubr_port, rcu);
-	struct ubr *ubr = p->ubr;
 
-	dev_put(ubr->port_devs[p->id]);
-	ubr->port_devs[p->id] = NULL;
+	dev_put(p->dev);
 	memset(p, 0, sizeof(*p));
 }
 
 void ubr_port_cleanup(struct ubr_port *p)
 {
-	clear_bit(p->id, p->ubr->ports_busy);
+	clear_bit(p->id, p->ubr->active->ports);
 	call_rcu(&p->rcu, __ubr_port_cleanup);
 }
 
@@ -32,21 +36,28 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev)
 {
 	struct ubr_port *p = &ubr->ports[id];
 
-	if (dev != ubr->dev)
-		dev_hold(dev);
-
 	p->ubr = ubr;
+	p->dev = dev;
 	p->id  = id;
-	ubr->port_devs[id] = dev;
+
+	p->ingress_cb = ubr_zalloc_with_vec(ubr, sizeof(*p->ingress_cb), 0);
+	if (!p->ingress_cb)
+		return ERR_PTR(-ENOMEM);
+
+	/* Allow egress on all ports execpt this one. */
+	p->ingress_cb->dst.type = UBR_DST_MANY;
+	bitmap_fill(p->ingress_cb->dst.ports, ubr->ports_max);
+	clear_bit(p->id, p->ingress_cb->dst.ports);
 
 	/* err = ubr_switchdev_port_init(p); */
 	/* if (err) */
 	/* 	return err; */
 
-	wmb();
-	set_bit(id, ubr->ports_busy);
-	ubr->ports_now++;
+	if (dev != ubr->dev)
+		dev_hold(dev);
 
+	wmb();
+	set_bit(id, ubr->active->ports);
 	return p;
 }
 
@@ -93,7 +104,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	if (err)
 		return err;
 
-	id = find_first_zero_bit(ubr->ports_busy, ubr->ports_max);
+	id = find_first_zero_bit(ubr->active->ports, ubr->ports_max);
 	if (id == ubr->ports_max) {
 		NL_SET_ERR_MSG(extack, "Maximum number of ports reached");
 		return -EBUSY;
@@ -115,7 +126,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	if (err)
 		goto err_unlink;
 
-	err = netdev_rx_handler_register(dev, ubr_port_lower_recv, p);
+	err = netdev_rx_handler_register(dev, ubr_port_rx_handler, p);
 	if (err)
 		goto err_clear_allmulti;
 
@@ -126,37 +137,18 @@ err_clear_allmulti:
 err_unlink:
 	netdev_upper_dev_unlink(dev, ubr->dev);
 err_uninit:
-	clear_bit(id, ubr->ports_busy);
+	clear_bit(id, ubr->active->ports);
 	__ubr_port_cleanup(&p->rcu);
 	return err;
 }
 
 int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 {
-	/* struct net_bridge_port *p; */
-	/* bool changed_addr; */
+	struct ubr_port *p = ubr_port_get_rtnl(dev);
 
-	/* p = br_port_get_rtnl(dev); */
-	/* if (!p || p->br != br) */
-	/* 	return -EINVAL; */
-
-	/* /\* Since more than one interface can be attached to a bridge, */
-	/*  * there still maybe an alternate path for netconsole to use; */
-	/*  * therefore there is no reason for a NETDEV_RELEASE event. */
-	/*  *\/ */
-	/* del_nbp(p); */
-
-	/* br_mtu_auto_adjust(br); */
-	/* br_set_gso_limits(br); */
-
-	/* spin_lock_bh(&br->lock); */
-	/* changed_addr = br_stp_recalculate_bridge_id(br); */
-	/* spin_unlock_bh(&br->lock); */
-
-	/* if (changed_addr) */
-	/* 	call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev); */
-
-	/* netdev_update_features(br->dev); */
-
+	netdev_rx_handler_unregister(dev);
+	dev_set_allmulti(dev, -1);
+	netdev_upper_dev_unlink(dev, ubr->dev);
+	ubr_port_cleanup(p);
 	return 0;
 }

@@ -15,13 +15,24 @@ void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev)
 					  netdev_get_fwd_headroom(new_dev));
 
 	ubr_port_foreach(ubr, id) {
-		netdev_set_rx_headroom(ubr->port_devs[id],
+		netdev_set_rx_headroom(ubr->ports[id].dev,
 				       ubr->dev->needed_headroom);
 	}
 }
 
-static int ubr_add_slave(struct net_device *dev, struct net_device *slave_dev,
-			struct netlink_ext_ack *extack)
+netdev_tx_t ubr_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct ubr *ubr = netdev_priv(dev);
+	struct ubr_cb *cb = ubr_cb(skb);
+
+	memcpy(cb, ubr->ports[0].ingress_cb, ubr_vec_sizeof(ubr, *cb));
+	ubr_forward(ubr, skb);
+	return NETDEV_TX_OK;
+}
+
+static int ubr_ndo_add_slave(struct net_device *dev,
+			     struct net_device *slave_dev,
+			     struct netlink_ext_ack *extack)
 
 {
 	struct ubr *ubr = netdev_priv(dev);
@@ -29,7 +40,8 @@ static int ubr_add_slave(struct net_device *dev, struct net_device *slave_dev,
 	return ubr_port_add(ubr, slave_dev, extack);
 }
 
-static int ubr_del_slave(struct net_device *dev, struct net_device *slave_dev)
+static int ubr_ndo_del_slave(struct net_device *dev,
+			     struct net_device *slave_dev)
 {
 	struct ubr *ubr = netdev_priv(dev);
 
@@ -41,7 +53,7 @@ static const struct net_device_ops ubr_dev_ops = {
 	/* .ndo_stop		 = br_dev_stop, */
 	/* .ndo_init		 = br_dev_init, */
 	/* .ndo_uninit		 = br_dev_uninit, */
-	/* .ndo_start_xmit		 = br_dev_xmit, */
+	.ndo_start_xmit		 = ubr_ndo_start_xmit,
 	/* .ndo_get_stats64	 = br_get_stats64, */
 	/* .ndo_set_mac_address	 = br_set_mac_address, */
 	/* .ndo_set_rx_mode	 = br_dev_set_multicast_list, */
@@ -49,8 +61,8 @@ static const struct net_device_ops ubr_dev_ops = {
 	/* .ndo_change_mtu		 = br_change_mtu, */
 	/* .ndo_do_ioctl		 = br_dev_ioctl, */
 
-	.ndo_add_slave		 = ubr_add_slave,
-	.ndo_del_slave		 = ubr_del_slave,
+	.ndo_add_slave		 = ubr_ndo_add_slave,
+	.ndo_del_slave		 = ubr_ndo_del_slave,
 	/* .ndo_fix_features        = br_fix_features, */
 	/* .ndo_fdb_add		 = br_fdb_add, */
 	/* .ndo_fdb_del		 = br_fdb_delete, */
@@ -89,6 +101,8 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 
 	/* TODO configurable ports_max */
 	ubr->ports_max = 256;
+	if (ubr_vec_sizeof(ubr, struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb))
+		return -EINVAL;
 
 	err = register_netdevice(dev);
 	if (err)
@@ -101,15 +115,11 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	if (!ubr->ports)
 		goto err_unregister;
 
-	ubr->port_devs = devm_kcalloc(&dev->dev, ubr->ports_max,
-				      sizeof(*ubr->port_devs), 0);
-	if (!ubr->port_devs)
+	ubr->active = ubr_zalloc_with_vec(ubr, sizeof(*ubr->active), 0);
+	if (!ubr->active)
 		goto err_unregister;
 
-	ubr->ports_busy = ubr_mask_alloc(ubr);
-	if (!ubr->ports_busy)
-		goto err_unregister;
-
+	ubr->active->type = UBR_DST_MANY;
 	ubr_port_init(ubr, 0, dev);
 	return 0;
 
