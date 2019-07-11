@@ -25,6 +25,8 @@ netdev_tx_t ubr_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ubr *ubr = netdev_priv(dev);
 	struct ubr_cb *cb = ubr_cb(skb);
 
+	skb_pull(skb, ETH_HLEN);
+
 	memcpy(cb, ubr->ports[0].ingress_cb, ubr_vec_sizeof(ubr, *cb));
 	ubr_forward(ubr, skb);
 	return NETDEV_TX_OK;

@@ -6,12 +6,12 @@ static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int id)
 {
 	skb->dev = ubr->ports[id].dev;
 
-	pr_emerg("one %d\n", id);
-
-	if (id)
+	if (id) {
+		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit(skb);
-	else
+	} else {
 		netif_receive_skb(skb);
+	}
 }
 
 static void ubr_deliver_many(struct ubr *ubr, struct sk_buff *skb)
@@ -20,7 +20,6 @@ static void ubr_deliver_many(struct ubr *ubr, struct sk_buff *skb)
 	struct sk_buff *cskb;
 	int id, first;
 
-	pr_emerg("many\n");
 	first = find_first_bit(cb->dst.ports, ubr->ports_max);
 
 	id = first + 1;
@@ -44,8 +43,6 @@ err_free:
 static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
-
-	pr_emerg("deliver %d\n", cb->dst.type);
 
 	switch (cb->dst.type) {
 	case UBR_DST_DROP:
