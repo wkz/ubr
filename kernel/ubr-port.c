@@ -122,9 +122,13 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	if (err)
 		goto err_uninit;
 
-	err = dev_set_allmulti(dev, 1);
+	err = dev_set_promiscuity(dev, 1);
 	if (err)
 		goto err_unlink;
+
+	err = dev_set_allmulti(dev, 1);
+	if (err)
+		goto err_clear_promisc;
 
 	err = netdev_rx_handler_register(dev, ubr_port_rx_handler, p);
 	if (err)
@@ -134,6 +138,8 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 
 err_clear_allmulti:
 	dev_set_allmulti(dev, -1);
+err_clear_promisc:
+	dev_set_promiscuity(dev, -1);
 err_unlink:
 	netdev_upper_dev_unlink(dev, ubr->dev);
 err_uninit:
@@ -148,6 +154,7 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 
 	netdev_rx_handler_unregister(dev);
 	dev_set_allmulti(dev, -1);
+	dev_set_promiscuity(dev, -1);
 	netdev_upper_dev_unlink(dev, ubr->dev);
 	ubr_port_cleanup(p);
 	return 0;
