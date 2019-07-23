@@ -137,10 +137,31 @@ static inline enum ubr_dst_type ubr_dst_and(struct ubr *ubr,
 					    struct ubr_dst *dst,
 					    struct ubr_dst *mask)
 {
+	struct ubr_dst *one, *many;
+
+	if (dst->type == UBR_DST_DROP || mask->type == UBR_DST_DROP)
+		return (dst->type = UBR_DST_DROP);
+
 	if (dst->type == UBR_DST_MANY && mask->type == UBR_DST_MANY) {
 		bitmap_and(dst->ports, dst->ports, mask->ports,
 			   ubr->ports_max);
+
+		switch (bitmap_weight(dst->ports, ubr->ports_max)) {
+		case 0:
+			return (dst->type = UBR_DST_DROP);
+		case 1:
+			dst->port = find_first_bit(dst->ports, ubr->ports_max);
+			return (dst->type = UBR_DST_ONE);
+		}
+
 		return UBR_DST_MANY;
+	}
+
+	one  = (dst->type == UBR_DST_ONE)  ? dst : mask;
+	many = (dst->type == UBR_DST_MANY) ? dst : mask;
+	if (test_bit(one->port, many->ports)) {
+		dst->port = one->port;
+		return (dst->type = UBR_DST_ONE);
 	}
 
 	return (dst->type = UBR_DST_DROP);
