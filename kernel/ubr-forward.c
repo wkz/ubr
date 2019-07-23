@@ -1,15 +1,21 @@
+#include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 
 #include "ubr-private.h"
 
 static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int id)
 {
+	struct ethhdr *eth = eth_hdr(skb);
+
 	skb->dev = ubr->ports[id].dev;
 
 	if (id) {
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit(skb);
 	} else {
+		if (ether_addr_equal(ubr->dev->dev_addr, eth->h_dest))
+			skb->pkt_type = PACKET_HOST;
+
 		netif_receive_skb(skb);
 	}
 }
