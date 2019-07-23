@@ -67,7 +67,11 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
 
-	ubr_dst_and(ubr, &cb->dst, ubr->active);
+	if (!ubr_dst_and(ubr, &cb->dst, ubr->active))
+		goto drop;
 
 	ubr_deliver(ubr, skb);
+	return;
+drop:
+	kfree_skb(skb);
 }
