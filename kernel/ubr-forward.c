@@ -20,20 +20,22 @@ static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int id)
 	}
 }
 
-static void ubr_deliver_many(struct ubr *ubr, struct sk_buff *skb)
+static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
 	struct sk_buff *cskb;
 	int id, first;
 
-	first = find_first_bit(cb->dst.ports, ubr->ports_max);
+	first = find_first_bit(cb->dst, ubr->ports_max);
+	if (first == ubr->ports_max)
+		goto drop;
 
 	id = first + 1;
-	for_each_set_bit_from(id, cb->dst.ports, ubr->ports_max) {
+	for_each_set_bit_from(id, cb->dst, ubr->ports_max) {
 		cskb = skb_clone(skb, GFP_ATOMIC);
 		if (!cskb) {
 			/* TODO: bump counter */
-			goto err_free;
+			goto drop;
 		}
 
 		ubr_deliver_one(ubr, cskb, id);
@@ -42,36 +44,63 @@ static void ubr_deliver_many(struct ubr *ubr, struct sk_buff *skb)
 	ubr_deliver_one(ubr, skb, first);
 	return;
 
-err_free:
+drop:
 	kfree_skb(skb);
 }
 
-static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
+static bool ubr_dot1q_ingress(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
+	bool tagged = false;
+	u16 vid = 0;
 
-	switch (cb->dst.type) {
-	case UBR_DST_DROP:
-		kfree_skb(skb);
-		break;
-	case UBR_DST_ONE:
-		ubr_deliver_one(ubr, skb, cb->dst.port);
-		break;
-	case UBR_DST_MANY:
-		ubr_deliver_many(ubr, skb);
-		break;
+	if (unlikely(!skb_vlan_tag_present(skb) &&
+		     skb->protocol == ubr->vlan_proto)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
 	}
+
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		if (unlikely(skb->vlan_proto != ubr->vlan_proto)) {
+			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+							skb_vlan_tag_get(skb));
+			if (unlikely(!skb))
+				return false;
+
+			skb_reset_mac_len(skb);
+		} else {
+			vid = skb_vlan_tag_get_id(skb);
+			tagged = vid ? true : false;
+		}
+	}
+
+	if (tagged)
+		cb->vlan = ubr_vlan_get(ubr, vid);
+
+	if (unlikely(!cb->vlan))
+		/* Untagged or priority tagged packet on port with no
+		 * default vlan (PVID), or tagged packet with a VID
+		 * not configured on this bridge. Drop. */
+		return false;
+
+	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
+	return true;
 }
 
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
 
-	if (!ubr_dst_and(ubr, &cb->dst, ubr->active))
-		goto drop;
+	if (cb->dot1q)
+		if (!ubr_dot1q_ingress(ubr, skb))
+			goto drop;
+	else
+		bitmap_and(cb->dst, cb->dst, ubr->active, ubr->ports_max);
 
 	ubr_deliver(ubr, skb);
 	return;
+
 drop:
-	kfree_skb(skb);
+	kfree(skb);
 }

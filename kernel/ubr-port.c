@@ -28,7 +28,7 @@ static void __ubr_port_cleanup(struct rcu_head *head)
 
 void ubr_port_cleanup(struct ubr_port *p)
 {
-	clear_bit(p->id, p->ubr->active->ports);
+	clear_bit(p->id, p->ubr->active);
 	call_rcu(&p->rcu, __ubr_port_cleanup);
 }
 
@@ -45,9 +45,8 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	/* Allow egress on all ports execpt this one. */
-	p->ingress_cb->dst.type = UBR_DST_MANY;
-	bitmap_fill(p->ingress_cb->dst.ports, ubr->ports_max);
-	clear_bit(p->id, p->ingress_cb->dst.ports);
+	bitmap_fill(p->ingress_cb->dst, ubr->ports_max);
+	clear_bit(p->id, p->ingress_cb->dst);
 
 	/* err = ubr_switchdev_port_init(p); */
 	/* if (err) */
@@ -57,7 +56,7 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev)
 		dev_hold(dev);
 
 	wmb();
-	set_bit(id, ubr->active->ports);
+	set_bit(id, ubr->active);
 	return p;
 }
 
@@ -104,7 +103,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	if (err)
 		return err;
 
-	id = find_first_zero_bit(ubr->active->ports, ubr->ports_max);
+	id = find_first_zero_bit(ubr->active, ubr->ports_max);
 	if (id == ubr->ports_max) {
 		NL_SET_ERR_MSG(extack, "Maximum number of ports reached");
 		return -EBUSY;
@@ -143,7 +142,7 @@ err_clear_promisc:
 err_unlink:
 	netdev_upper_dev_unlink(dev, ubr->dev);
 err_uninit:
-	clear_bit(id, ubr->active->ports);
+	clear_bit(id, ubr->active);
 	__ubr_port_cleanup(&p->rcu);
 	return err;
 }

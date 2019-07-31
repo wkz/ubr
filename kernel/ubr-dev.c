@@ -117,12 +117,12 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	if (!ubr->ports)
 		goto err_unregister;
 
-	ubr->active = ubr_zalloc_with_vec(ubr, sizeof(*ubr->active), 0);
+	ubr->active = ubr_zalloc_vec(ubr, 0);
 	if (!ubr->active)
 		goto err_unregister;
 
-	ubr->active->type = UBR_DST_MANY;
 	ubr_port_init(ubr, 0, dev);
+	ubr_vlan_init(ubr);
 	return 0;
 
 err_unregister:
