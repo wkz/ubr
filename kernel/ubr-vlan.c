@@ -1,7 +1,8 @@
+#include <linux/if_vlan.h>
 
 #include "ubr-private.h"
 
-struct ubr_vlan *ubr_vlan_get(struct ubr *ubr, u16 vid)
+static struct ubr_vlan *ubr_vlan_get(struct ubr *ubr, u16 vid)
 {
 	struct ubr_vlan *v;
 
@@ -11,6 +12,46 @@ struct ubr_vlan *ubr_vlan_get(struct ubr *ubr, u16 vid)
 	}
 
 	return NULL;
+}
+
+bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
+{
+	struct ubr_cb *cb = ubr_cb(skb);
+	bool tagged = false;
+	u16 vid = 0;
+
+	if (unlikely(!skb_vlan_tag_present(skb) &&
+		     skb->protocol == ubr->vlan_proto)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
+	if (unlikely(skb_vlan_tag_present(skb))) {
+		if (unlikely(skb->vlan_proto != ubr->vlan_proto)) {
+			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
+							skb_vlan_tag_get(skb));
+			if (unlikely(!skb))
+				return false;
+
+			skb_reset_mac_len(skb);
+		} else {
+			vid = skb_vlan_tag_get_id(skb);
+			tagged = vid ? true : false;
+		}
+	}
+
+	if (tagged)
+		cb->vlan = ubr_vlan_get(ubr, vid);
+
+	if (unlikely(!cb->vlan))
+		/* Untagged or priority tagged packet on port with no
+		 * default vlan (PVID), or tagged packet with a VID
+		 * not configured on this bridge. Drop. */
+		return false;
+
+	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
+ 	return test_bit(cb->id, cb->vlan->members);
 }
 
 int ubr_vlan_port_add(struct ubr *ubr, u16 vid, int id, bool tagged)

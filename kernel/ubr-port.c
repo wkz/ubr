@@ -44,6 +44,7 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev)
 	if (!p->ingress_cb)
 		return ERR_PTR(-ENOMEM);
 
+	p->ingress_cb->id = id;
 	/* Allow egress on all ports execpt this one. */
 	bitmap_fill(p->ingress_cb->dst, ubr->ports_max);
 	clear_bit(p->id, p->ingress_cb->dst);

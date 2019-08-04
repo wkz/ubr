@@ -6,54 +6,24 @@
 
 #include <net/rtnetlink.h>
 
-/* struct ubr_addr { */
-/* 	/\* ETH_P_IP , ETH_P_IPV6, ETH_P_ALL *\/ */
-/* 	__be16 proto; */
-/* 	union { */
-/* 		__be32          ip4; */
-/* 		struct in6_addr ip6; */
-/* 		u8              mac[ETH_ALEN]; */
-/* 	} */
-/* }; */
+enum ubr_stp_state {
+	UBR_STP_BLOCKING,
+#define	UBR_STP_LISTENING UBR_STP_BLOCKING
+	UBR_STP_LEARNING,
+	UBR_STP_FORWARDING
+};
 
-/* struct ubr_dst { */
-/* 	struct rhash_head rhnode; */
-/* 	struct ubr_addr addr; */
+struct ubr_stp {
+	struct hlist_node node;
+	u16 sid;
 
-/* 	struct ubr_portvec target; */
-/* }; */
+	unsigned long *forwarding;
+	unsigned long *learning;
 
-/* struct ubr_fdb { */
-/* 	struct rhash_head rhnode; */
-/* 	u16 fid; */
+	struct rcu_head rcu;
+	refcount_t refcount;
+};
 
-/* 	refcount_t refcnt; */
-	
-/* 	struct rhashtable *db; */
-/* }; */
-
-/* enum ubr_stp_state { */
-/* 	UBR_STP_BLOCKING, */
-/* 	UBR_STP_LISTENING, */
-/* 	UBR_STP_LEARNING, */
-/* 	UBR_STP_FORWARDING */
-/* }; */
-
-/* struct ubr_stpdb { */
-/* 	struct rhash_head rhnode; */
-/* 	u16 sid; */
-
-/* 	refcount_t refcnt; */
-
-/* 	struct ubr_portvec state[2]; */
-/* }; */
-
-/* static inline enum ubr_stp_state */
-/* ubr_stpdb_get(const struct ubr_stpdb *stpdb, int port) */
-/* { */
-/* 	return !!test_bit(port, stpdb->state[0].v) | */
-/* 		(!!test_bit(port, stpdb->state[1].v) << 1) */
-/* } */
 
 struct ubr_vlan {
 	struct hlist_node node;
@@ -63,15 +33,11 @@ struct ubr_vlan {
 	unsigned long *tagged;
 
 	/* struct ubr_fdb *fdb; */
-	/* struct ubr_sdb *sdb; */
+	struct ubr_stp *stp;
 
 	struct rcu_head rcu;
 };
 
-
-struct ubr_switchdev_domain {
-	unsigned long *members;
-};
 
 struct ubr_cb;
 
@@ -108,14 +74,14 @@ struct ubr {
 	u16 vlan_proto;
 
 	DECLARE_HASHTABLE(vlans, 8);
-	/* struct rhashtable *vlans; */
-	/* struct rhashtable *fdbs; */
-	/* struct rhashtable *stpdbs; */
+	DECLARE_HASHTABLE(fdbs, 8);
+	DECLARE_HASHTABLE(stps, 8);
 };
 
 struct ubr_cb {
-	unsigned dot1q:1;
-	unsigned learn:1;
+	int id;
+	unsigned vlan_filter:1;
+	unsigned sa_learning:1;
 
 	struct ubr_vlan *vlan;
 
@@ -166,7 +132,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 int ubr_port_del(struct ubr *ubr, struct net_device *dev);
 
 /* ubr-vlan.c */
-struct ubr_vlan *ubr_vlan_get(struct ubr *ubr, u16 vid);
+bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb);
 
 int ubr_vlan_port_add(struct ubr *ubr, u16 vid, int id, bool tagged);
 int ubr_vlan_port_del(struct ubr *ubr, u16 vid, int id);

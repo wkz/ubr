@@ -48,59 +48,56 @@ drop:
 	kfree_skb(skb);
 }
 
-static bool ubr_dot1q_ingress(struct ubr *ubr, struct sk_buff *skb)
-{
-	struct ubr_cb *cb = ubr_cb(skb);
-	bool tagged = false;
-	u16 vid = 0;
-
-	if (unlikely(!skb_vlan_tag_present(skb) &&
-		     skb->protocol == ubr->vlan_proto)) {
-		skb = skb_vlan_untag(skb);
-		if (unlikely(!skb))
-			return false;
-	}
-
-	if (unlikely(skb_vlan_tag_present(skb))) {
-		if (unlikely(skb->vlan_proto != ubr->vlan_proto)) {
-			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
-							skb_vlan_tag_get(skb));
-			if (unlikely(!skb))
-				return false;
-
-			skb_reset_mac_len(skb);
-		} else {
-			vid = skb_vlan_tag_get_id(skb);
-			tagged = vid ? true : false;
-		}
-	}
-
-	if (tagged)
-		cb->vlan = ubr_vlan_get(ubr, vid);
-
-	if (unlikely(!cb->vlan))
-		/* Untagged or priority tagged packet on port with no
-		 * default vlan (PVID), or tagged packet with a VID
-		 * not configured on this bridge. Drop. */
-		return false;
-
-	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
-	return true;
-}
-
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
+	struct ubr_dst *dst = NULL;
+	bool allowed = true;
 
-	if (cb->dot1q)
-		if (!ubr_dot1q_ingress(ubr, skb))
-			goto drop;
-	else
-		bitmap_and(cb->dst, cb->dst, ubr->active, ubr->ports_max);
+	bitmap_and(cb->dst, cb->dst, ubr->active, ubr->ports_max);
 
-	ubr_deliver(ubr, skb);
-	return;
+	if (cb->vlan_filter)
+		allowed = ubr_vlan_ingress(ubr, skb);
+
+	/* /\* uses regular SO_ATTACH_FILTER/BPF *\/ */
+	/* if (unlikely(ubr_ctrl_ingress(ubr, skb))) */
+	/* 	goto consumed; */
+
+	/* if (allowed && cb->stp) */
+	/* 	allowed = ubr_stp_ingress(ubr, skb); */
+
+	if (unlikely(!allowed))
+		goto drop;
+
+	/* if (cb->fdb) { */
+	/* 	if (cb->sa_learning) */
+	/* 		ubr_fdb_learn(ubr, skb); */
+
+	/* 	dst = ubr_fdb_lookup(ubr, skb); */
+	/* } */
+
+	if (!dst) {
+		/* TODO: filter based on packet type, e.g. unknown
+		 * unicast etc. */
+		ubr_deliver(ubr, skb);
+		return;
+	}
+
+	/* switch (dst->type) { */
+	/* case UBR_DST_ONE: */
+	/* 	if (!test_bit(dst->port, cb->dst)) */
+	/* 		goto drop; */
+
+	/* 	return ubr_deliver_one(ubr, skb, dst->port); */
+
+	/* case UBR_DST_MANY: */
+	/* 	bitmap_and(cb->dst, cb->dst, dst->ports, ubr->ports_max); */
+	/* 	ubr_deliver(ubr, skb); */
+	/* 	return; */
+	/* } */
 
 drop:
 	kfree(skb);
+/* consumed: */
+	return;
 }
