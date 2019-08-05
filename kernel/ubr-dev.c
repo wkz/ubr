@@ -102,7 +102,7 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	ubr->dev = dev;
 
 	/* TODO configurable ports_max */
-	ubr->ports_max = 256;
+	ubr->ports_max = UBR_MAX_PORTS;
 	if (ubr_vec_sizeof(ubr, struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb))
 		return -EINVAL;
 
@@ -121,8 +121,17 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	if (!ubr->active)
 		goto err_unregister;
 
+	ubr->vlan_proto = ETH_P_8021Q;
+
+	hash_init(ubr->vlans);
+	hash_init(ubr->fdbs);
+	hash_init(ubr->stps);
+
+	err = ubr_vlan_init(ubr);
+	if (err)
+		goto err_unregister;
+
 	ubr_port_init(ubr, 0, dev);
-	ubr_vlan_init(ubr);
 	return 0;
 
 err_unregister:

@@ -6,7 +6,7 @@
 static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int id)
 {
 	struct ethhdr *eth = eth_hdr(skb);
-
+	
 	skb->dev = ubr->ports[id].dev;
 
 	if (id) {
@@ -52,30 +52,34 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
 	struct ubr_dst *dst = NULL;
-	bool allowed = true;
 
-	bitmap_and(cb->dst, cb->dst, ubr->active, ubr->ports_max);
+	/* Run all enabled ingress checks and record the results, but
+	 * don't drop filtered frames until ubr sockets have had a
+	 * chance to trap them. */
+	if (!cb->vlan_ok)
+		cb->vlan_ok = ubr_vlan_ingress(ubr, skb);
 
-	if (cb->vlan_filter)
-		allowed = ubr_vlan_ingress(ubr, skb);
+	/* if (!cb->stp_ok) */
+	/* 	cb->stp_ok = ubr_stp_ingress(ubr, skb); */
 
-	/* /\* uses regular SO_ATTACH_FILTER/BPF *\/ */
-	/* if (unlikely(ubr_ctrl_ingress(ubr, skb))) */
+	/* if (!cb->sa_ok) */
+	/* 	cb->sa_ok = ubr_fdb_ingress(ubr, skb); */
+
+	/* Check if there is an ubr socket that want's to consume this
+	 * packet. */
+	/* if (ubr_ctrl_ingress(ubr, skb)) */
 	/* 	goto consumed; */
 
-	/* if (allowed && cb->stp) */
-	/* 	allowed = ubr_stp_ingress(ubr, skb); */
-
-	if (unlikely(!allowed))
+	/* No filtered packets allowed beyond this point. */
+	if (unlikely(!(cb->vlan_ok && cb->stp_ok && cb->sa_ok)))
 		goto drop;
 
-	/* if (cb->fdb) { */
-	/* 	if (cb->sa_learning) */
-	/* 		ubr_fdb_learn(ubr, skb); */
+	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
 
-	/* 	dst = ubr_fdb_lookup(ubr, skb); */
-	/* } */
+	/* if (cb->sa_learning && cb->vlan->sa_learning) */
+	/* 	ubr_fdb_learn(ubr, skb); */
 
+	/* dst = ubr_fdb_lookup(ubr, skb); */
 	if (!dst) {
 		/* TODO: filter based on packet type, e.g. unknown
 		 * unicast etc. */

@@ -2,18 +2,6 @@
 
 #include "ubr-private.h"
 
-static struct ubr_vlan *ubr_vlan_get(struct ubr *ubr, u16 vid)
-{
-	struct ubr_vlan *v;
-
-	hash_for_each_possible(ubr->vlans, v, node, vid) {
-		if (v->vid == vid)
-			return v;
-	}
-
-	return NULL;
-}
-
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
@@ -42,7 +30,7 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	}
 
 	if (tagged)
-		cb->vlan = ubr_vlan_get(ubr, vid);
+		cb->vlan = ubr_vlan_find(ubr, vid);
 
 	if (unlikely(!cb->vlan))
 		/* Untagged or priority tagged packet on port with no
@@ -50,89 +38,115 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 		 * not configured on this bridge. Drop. */
 		return false;
 
-	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
- 	return test_bit(cb->id, cb->vlan->members);
+ 	return test_bit(cb->idx, cb->vlan->members);
 }
 
-int ubr_vlan_port_add(struct ubr *ubr, u16 vid, int id, bool tagged)
+int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned idx, bool tagged)
 {
-	struct ubr_vlan *v;
-
-	v = ubr_vlan_get(ubr, vid);
-	if (!v)
-		return -ESRCH;
-
-	set_bit(id, v->members);
-
-	if (tagged)
-		set_bit(id, v->tagged);
-		
-	return 0;
-}
-
-int ubr_vlan_port_del(struct ubr *ubr, u16 vid, int id)
-{
-	struct ubr_vlan *v;
-
-	v = ubr_vlan_get(ubr, vid);
-	if (!v)
-		return -ESRCH;
-
-	clear_bit(id, v->members);
-	clear_bit(id, v->tagged);		
-	return 0;
-}
-
-static int ubr_vlan_insert(struct ubr *ubr, struct ubr_vlan *v)
-{
-	struct ubr_vlan *search;
-
-	hash_for_each_possible(ubr->vlans, search, node, v->vid) {
-		if (search->vid == v->vid)
-			return -EBUSY;
+	if (tagged) {
+		set_bit(idx, vlan->tagged);
+		smp_wmb();
 	}
 
-	hash_add(ubr->vlans, &v->node, v->vid);
+	set_bit(idx, vlan->members);
 	return 0;
 }
 
-int ubr_vlan_add(struct ubr *ubr, u16 vid)
+int ubr_vlan_port_del(struct ubr_vlan *vlan, unsigned idx)
 {
-	struct ubr_vlan *v;
+	clear_bit(idx, vlan->members);
+
+	smp_wmb();
+
+	clear_bit(idx, vlan->tagged);		
+	return 0;
+}
+
+struct ubr_vlan *ubr_vlan_find(struct ubr *ubr, u16 vid)
+{
+	struct ubr_vlan *vlan;
+
+	hash_for_each_possible(ubr->vlans, vlan, node, vid) {
+		if (vlan->vid == vid)
+			return vlan;
+	}
+
+	return NULL;
+}
+
+static void ubr_vlan_del_rcu(struct rcu_head *head)
+{
+	struct ubr_vlan *vlan = container_of(head, struct ubr_vlan, rcu);
+
+	/* ubr_fdb_put(vlan->fdb); */
+	kfree(vlan->tagged);
+	kfree(vlan->members);
+	kfree(vlan);
+}
+
+int ubr_vlan_del(struct ubr_vlan *vlan)
+{
+	bitmap_zero(vlan->members, vlan->ubr->ports_max);
+	call_rcu(&vlan->rcu, ubr_vlan_del_rcu);
+	return 0;
+}
+
+struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
+{
+	struct ubr_vlan *vlan;
 	int err = -ENOMEM;
 
-	v = kzalloc(sizeof(*v), 0);
-	if (!v)
+	vlan = ubr_vlan_find(ubr, vid);
+	if (vlan) {
+		err = -EBUSY;
+		goto err;
+	}
+
+	vlan = kzalloc(sizeof(*vlan), 0);
+	if (!vlan)
 		goto err;
 
-	v->members = ubr_zalloc_vec(ubr, 0);
-	if (!v->members)
-		goto err_free_v;
+	vlan->ubr = ubr;
+	vlan->vid = vid;
 
-	v->tagged = ubr_zalloc_vec(ubr, 0);
-	if (!v->tagged)
-		goto err_free_members;
+	vlan->members = ubr_zalloc_vec(ubr, 0);
+	if (!vlan->members)
+		goto err;
 
-	v->vid = vid;
+	vlan->tagged = ubr_zalloc_vec(ubr, 0);
+	if (!vlan->tagged)
+		goto err;
 
-	err = ubr_vlan_insert(ubr, v);
-	if (err)
-		goto err_free_tagged;
+	/* vlan->fdb = ubr_fdb_get(ubr, fid); */
+	/* if (IS_ERR(vlan->fdb)) { */
+	/* 	err = PTR_ERR(vlan->fdb); */
+	/* 	vlan->fdb = NULL; */
+	/* 	goto err; */
+	/* } */
 
-	return 0;
+	hash_add(ubr->vlans, &vlan->node, vlan->vid);
+	return vlan;
 
-err_free_tagged:
-	kfree(v->tagged);
-err_free_members:
-	kfree(v->members);
-err_free_v:
-	kfree(v);
 err:
-	return err;
+	/* if (vlan && vlan->fdb) */
+	/* 	ubr_fdb_put(vlan->fdb); */
+	if (vlan && vlan->tagged)
+		kfree(vlan->tagged);
+	if (vlan && vlan->members)
+		kfree(vlan->members);
+	if (vlan)
+		kfree(vlan);
+
+	return ERR_PTR(err);
 }
 
 int ubr_vlan_init(struct ubr *ubr)
 {
-	hash_init(ubr->vlans);
+	struct ubr_vlan *vlan0;
+
+	vlan0 = ubr_vlan_new(ubr, 0, 0, 0);
+	if (IS_ERR(vlan0))
+		return PTR_ERR(vlan0);
+
 	return 0;
 }

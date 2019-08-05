@@ -6,34 +6,40 @@
 
 #include <net/rtnetlink.h>
 
-enum ubr_stp_state {
-	UBR_STP_BLOCKING,
-#define	UBR_STP_LISTENING UBR_STP_BLOCKING
-	UBR_STP_LEARNING,
-	UBR_STP_FORWARDING
-};
+#define UBR_MAX_PORTS_SHIFT 8
+#define UBR_MAX_PORTS      (1 << UBR_MAX_PORTS_SHIFT)
 
-struct ubr_stp {
-	struct hlist_node node;
-	u16 sid;
+/* enum ubr_stp_state { */
+/* 	UBR_STP_BLOCKING, */
+/* #define	UBR_STP_LISTENING UBR_STP_BLOCKING */
+/* 	UBR_STP_LEARNING, */
+/* 	UBR_STP_FORWARDING */
+/* }; */
 
-	unsigned long *forwarding;
-	unsigned long *learning;
+/* struct ubr_stp { */
+/* 	struct hlist_node node; */
+/* 	u16 sid; */
 
-	struct rcu_head rcu;
-	refcount_t refcount;
-};
+/* 	unsigned long *forwarding; */
+/* 	unsigned long *learning; */
+
+/* 	struct rcu_head rcu; */
+/* 	refcount_t refcount; */
+/* }; */
 
 
 struct ubr_vlan {
+	struct ubr *ubr;
 	struct hlist_node node;
 	u16 vid;
+
+	unsigned sa_learning:1;
 
 	unsigned long *members;
 	unsigned long *tagged;
 
 	/* struct ubr_fdb *fdb; */
-	struct ubr_stp *stp;
+	/* struct ubr_stp *stp; */
 
 	struct rcu_head rcu;
 };
@@ -44,12 +50,7 @@ struct ubr_cb;
 struct ubr_port {
 	struct ubr *ubr;
 	struct net_device *dev;
-	int id;
-
 	struct ubr_cb *ingress_cb;
-
-	/* struct ubr_vlan *pvlan; */
-	/* enum ubr_vlan_mode vlan_mode:1; */
 
 	struct rcu_head rcu;
 };
@@ -79,8 +80,16 @@ struct ubr {
 };
 
 struct ubr_cb {
-	int id;
-	unsigned vlan_filter:1;
+	/* Ingress port index */
+	unsigned idx:UBR_MAX_PORTS_SHIFT;
+
+	/* Ingress filter results. Setting these in a port's
+	 * ingress_cb will _disable_ the corresponding filter,
+	 * i.e. the result is assumed to be ok. */
+	unsigned vlan_ok:1;
+	unsigned stp_ok:1;
+	unsigned sa_ok:1;
+	
 	unsigned sa_learning:1;
 
 	struct ubr_vlan *vlan;
@@ -125,7 +134,7 @@ void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 
 /* ubr-port.c */
-struct ubr_port *ubr_port_init(struct ubr *ubr, int id, struct net_device *dev);
+struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device *dev);
 
 int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 		 struct netlink_ext_ack *extack);
@@ -134,11 +143,12 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev);
 /* ubr-vlan.c */
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb);
 
-int ubr_vlan_port_add(struct ubr *ubr, u16 vid, int id, bool tagged);
-int ubr_vlan_port_del(struct ubr *ubr, u16 vid, int id);
+int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned idx, bool tagged);
+int ubr_vlan_port_del(struct ubr_vlan *vlan, unsigned idx);
 
-int ubr_vlan_add(struct ubr *ubr, u16 vid);
-int ubr_vlan_del(struct ubr *ubr, u16 vid);
+struct ubr_vlan *ubr_vlan_find(struct ubr *ubr, u16 vid);
+int              ubr_vlan_del (struct ubr_vlan *vlan);
+struct ubr_vlan *ubr_vlan_new (struct ubr *ubr, u16 vid, u16 fid, u16 sid);
 
 int ubr_vlan_init(struct ubr *ubr);
 
