@@ -13,8 +13,8 @@ static rx_handler_result_t ubr_port_rx_handler(struct sk_buff **pskb)
 	struct ubr_port *p = ubr_port_get_rcu(skb->dev);
 	struct ubr_cb *cb = ubr_cb(skb);
 
-	memcpy(cb, p->ingress_cb, ubr_vec_sizeof(p->ubr, *cb));
-	ubr_forward(p->ubr, skb);	
+	memcpy(cb, &p->ingress_cb, sizeof(*cb));
+	ubr_forward(ubr_from_port(p), skb);	
 	return RX_HANDLER_CONSUMED;
 }
 
@@ -23,45 +23,38 @@ static void __ubr_port_cleanup(struct rcu_head *head)
 	struct ubr_port *p = container_of(head, struct ubr_port, rcu);
 
 	dev_put(p->dev);
-	kfree(p->ingress_cb);
-	dump_stack();
 	memset(p, 0, sizeof(*p));
 }
 
 void ubr_port_cleanup(struct ubr_port *p)
 {
-	clear_bit(p->ingress_cb->idx, p->ubr->active);
+	struct ubr *ubr = ubr_from_port(p);
+
+	ubr_vec_clear(&ubr->busy, p->ingress_cb.pidx);
 	call_rcu(&p->rcu, __ubr_port_cleanup);
 }
 
-struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device *dev)
+struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device *dev)
 {
-	struct ubr_port *p = &ubr->ports[idx];
-	struct ubr_cb *cb;
+	struct ubr_port *p = &ubr->ports[pidx];
+	struct ubr_cb *cb = &p->ingress_cb;
 
-	p->ubr = ubr;
 	p->dev = dev;
-
-	cb = ubr_zalloc_with_vec(ubr, sizeof(*p->ingress_cb), 0);
-	if (!cb)
-		return ERR_PTR(-ENOMEM);
-
-	cb->idx = idx;
-
-	/* Allow egress on all ports execpt this one. */
-	bitmap_fill(cb->dst, ubr->ports_max);
-	clear_bit(idx, cb->dst);
+	cb->pidx = pidx;
 
 	/* Disable all ingress filtering. */
 	cb->vlan_ok = 1;
 	cb->stp_ok = 1;
 	cb->sa_ok = 1;
+
+	/* Allow egress on all ports execpt this one. */
+	bitmap_fill(cb->vec.bitmap, UBR_MAX_PORTS);
+	ubr_vec_clear(&cb->vec, pidx);
+
 	
 	/* Put all ports in VLAN 0. */
 	cb->vlan = ubr_vlan_find(ubr, 0);
-	ubr_vlan_port_add(cb->vlan, idx, 0);
-
-	p->ingress_cb = cb;
+	ubr_vlan_port_add(cb->vlan, pidx, 0);
 
 	/* err = ubr_switchdev_port_init(p); */
 	/* if (err) */
@@ -71,7 +64,7 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device 
 		dev_hold(dev);
 
 	smp_wmb();
-	set_bit(idx, ubr->active);
+	ubr_vec_set(&ubr->busy, pidx);
 	return p;
 }
 
@@ -112,19 +105,19 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 		 struct netlink_ext_ack *extack)
 {
 	struct ubr_port *p;
-	int err, id;
+	int err, pidx;
 
 	err = __ubr_port_add_allowed(dev, extack);
 	if (err)
 		return err;
 
-	id = find_first_zero_bit(ubr->active, ubr->ports_max);
-	if (id == ubr->ports_max) {
+	pidx = find_first_zero_bit(ubr->busy.bitmap, UBR_MAX_PORTS);
+	if (pidx == UBR_MAX_PORTS) {
 		NL_SET_ERR_MSG(extack, "Maximum number of ports reached");
 		return -EBUSY;
 	}
 
-	p = ubr_port_init(ubr, id, dev);
+	p = ubr_port_init(ubr, pidx, dev);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
@@ -157,7 +150,7 @@ err_clear_promisc:
 err_unlink:
 	netdev_upper_dev_unlink(dev, ubr->dev);
 err_uninit:
-	clear_bit(id, ubr->active);
+	ubr_vec_clear(&ubr->busy, pidx);
 	__ubr_port_cleanup(&p->rcu);
 	return err;
 }

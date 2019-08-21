@@ -8,14 +8,14 @@
 
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev)
 {
-	int id;
+	unsigned pidx;
 
 	ubr->dev->needed_headroom = max_t(unsigned short,
 					  ubr->dev->needed_headroom,
 					  netdev_get_fwd_headroom(new_dev));
 
-	ubr_port_foreach(ubr, id) {
-		netdev_set_rx_headroom(ubr->ports[id].dev,
+	ubr_vec_foreach(&ubr->busy, pidx) {
+		netdev_set_rx_headroom(ubr->ports[pidx].dev,
 				       ubr->dev->needed_headroom);
 	}
 }
@@ -27,7 +27,7 @@ netdev_tx_t ubr_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_pull(skb, ETH_HLEN);
 
-	memcpy(cb, ubr->ports[0].ingress_cb, ubr_vec_sizeof(ubr, *cb));
+	memcpy(cb, &ubr->ports[0].ingress_cb, sizeof(*cb));
 	ubr_forward(ubr, skb);
 	return NETDEV_TX_OK;
 }
@@ -99,44 +99,20 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	int err;
 
 	memset(ubr, 0, sizeof(*ubr));
+
 	ubr->dev = dev;
-
-	/* TODO configurable ports_max */
-	ubr->ports_max = UBR_MAX_PORTS;
-	if (ubr_vec_sizeof(ubr, struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb))
-		return -EINVAL;
-
-	err = register_netdevice(dev);
-	if (err)
-		return err;
-
-	err = -ENOMEM;
-
-	ubr->ports = devm_kcalloc(&dev->dev, ubr->ports_max,
-				  sizeof(*ubr->ports), 0);
-	if (!ubr->ports)
-		goto err_unregister;
-
-	ubr->active = ubr_zalloc_vec(ubr, 0);
-	if (!ubr->active)
-		goto err_unregister;
-
 	ubr->vlan_proto = ETH_P_8021Q;
-
 	hash_init(ubr->vlans);
 	hash_init(ubr->fdbs);
 	hash_init(ubr->stps);
 
 	err = ubr_vlan_init(ubr);
 	if (err)
-		goto err_unregister;
+		return err;
 
 	ubr_port_init(ubr, 0, dev);
-	return 0;
 
-err_unregister:
-	unregister_netdevice(dev);
-	return err;
+	return 	register_netdevice(dev);
 }
 
 struct rtnl_link_ops ubr_link_ops __read_mostly = {
@@ -163,20 +139,17 @@ static int __init ubr_module_init(void)
 {
 	int err;
 
-	pr_err("ubr hello\n");
+	BUILD_BUG_ON(sizeof(struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	err = rtnl_link_register(&ubr_link_ops);
 	if (err)
 		return err;
 
-	pr_err("ubr ready\n");
 	return 0;
 }
 
 static void __exit ubr_module_cleanup(void)
 {
-	pr_err("ubr bye\n");
-
 	rtnl_link_unregister(&ubr_link_ops);
 }
 

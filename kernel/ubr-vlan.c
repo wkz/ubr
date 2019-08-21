@@ -38,27 +38,27 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 		 * not configured on this bridge. Drop. */
 		return false;
 
- 	return test_bit(cb->idx, cb->vlan->members);
+ 	return ubr_vec_test(&cb->vlan->members, cb->pidx);
 }
 
-int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned idx, bool tagged)
+int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned pidx, bool tagged)
 {
 	if (tagged) {
-		set_bit(idx, vlan->tagged);
+		ubr_vec_set(&vlan->tagged, pidx);
 		smp_wmb();
 	}
 
-	set_bit(idx, vlan->members);
+	ubr_vec_set(&vlan->members, pidx);
 	return 0;
 }
 
-int ubr_vlan_port_del(struct ubr_vlan *vlan, unsigned idx)
+int ubr_vlan_port_del(struct ubr_vlan *vlan, unsigned pidx)
 {
-	clear_bit(idx, vlan->members);
+	ubr_vec_clear(&vlan->members, pidx);
 
 	smp_wmb();
 
-	clear_bit(idx, vlan->tagged);		
+	ubr_vec_clear(&vlan->tagged, pidx);		
 	return 0;
 }
 
@@ -79,14 +79,12 @@ static void ubr_vlan_del_rcu(struct rcu_head *head)
 	struct ubr_vlan *vlan = container_of(head, struct ubr_vlan, rcu);
 
 	/* ubr_fdb_put(vlan->fdb); */
-	kfree(vlan->tagged);
-	kfree(vlan->members);
 	kfree(vlan);
 }
 
 int ubr_vlan_del(struct ubr_vlan *vlan)
 {
-	bitmap_zero(vlan->members, vlan->ubr->ports_max);
+	bitmap_zero(vlan->members.bitmap, UBR_MAX_PORTS);
 	call_rcu(&vlan->rcu, ubr_vlan_del_rcu);
 	return 0;
 }
@@ -97,10 +95,8 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 	int err = -ENOMEM;
 
 	vlan = ubr_vlan_find(ubr, vid);
-	if (vlan) {
-		err = -EBUSY;
-		goto err;
-	}
+	if (vlan)
+		return ERR_PTR(-EBUSY);
 
 	vlan = kzalloc(sizeof(*vlan), 0);
 	if (!vlan)
@@ -108,14 +104,6 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 
 	vlan->ubr = ubr;
 	vlan->vid = vid;
-
-	vlan->members = ubr_zalloc_vec(ubr, 0);
-	if (!vlan->members)
-		goto err;
-
-	vlan->tagged = ubr_zalloc_vec(ubr, 0);
-	if (!vlan->tagged)
-		goto err;
 
 	/* vlan->fdb = ubr_fdb_get(ubr, fid); */
 	/* if (IS_ERR(vlan->fdb)) { */
@@ -130,10 +118,6 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 err:
 	/* if (vlan && vlan->fdb) */
 	/* 	ubr_fdb_put(vlan->fdb); */
-	if (vlan && vlan->tagged)
-		kfree(vlan->tagged);
-	if (vlan && vlan->members)
-		kfree(vlan->members);
 	if (vlan)
 		kfree(vlan);
 

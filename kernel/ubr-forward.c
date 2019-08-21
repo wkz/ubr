@@ -3,13 +3,13 @@
 
 #include "ubr-private.h"
 
-static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int id)
+static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int pidx)
 {
 	struct ethhdr *eth = eth_hdr(skb);
 	
-	skb->dev = ubr->ports[id].dev;
+	skb->dev = ubr->ports[pidx].dev;
 
-	if (id) {
+	if (pidx) {
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit(skb);
 	} else {
@@ -24,21 +24,21 @@ static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
 	struct sk_buff *cskb;
-	int id, first;
+	int pidx, first;
 
-	first = find_first_bit(cb->dst, ubr->ports_max);
-	if (first == ubr->ports_max)
+	first = find_first_bit(cb->vec.bitmap, UBR_MAX_PORTS);
+	if (first == UBR_MAX_PORTS)
 		goto drop;
 
-	id = first + 1;
-	for_each_set_bit_from(id, cb->dst, ubr->ports_max) {
+	pidx = first + 1;
+	for_each_set_bit_from(pidx, cb->vec.bitmap, UBR_MAX_PORTS) {
 		cskb = skb_clone(skb, GFP_ATOMIC);
 		if (!cskb) {
 			/* TODO: bump counter */
 			goto drop;
 		}
 
-		ubr_deliver_one(ubr, cskb, id);
+		ubr_deliver_one(ubr, cskb, pidx);
 	}
 
 	ubr_deliver_one(ubr, skb, first);
@@ -74,7 +74,7 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 	if (unlikely(!(cb->vlan_ok && cb->stp_ok && cb->sa_ok)))
 		goto drop;
 
-	bitmap_and(cb->dst, cb->dst, cb->vlan->members, ubr->ports_max);
+	ubr_vec_and(&cb->vec, &cb->vlan->members);
 
 	/* if (cb->sa_learning && cb->vlan->sa_learning) */
 	/* 	ubr_fdb_learn(ubr, skb); */

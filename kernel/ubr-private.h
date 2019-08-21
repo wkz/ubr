@@ -9,6 +9,47 @@
 #define UBR_MAX_PORTS_SHIFT 8
 #define UBR_MAX_PORTS      (1 << UBR_MAX_PORTS_SHIFT)
 
+/* Port vector */
+struct ubr_vec {
+	unsigned long bitmap[BITS_TO_LONGS(UBR_MAX_PORTS)];
+};
+
+#define __ubr_vec_bitmap_op(_op, ...) \
+	bitmap_ ## _op(__VA_ARGS__, UBR_MAX_PORTS)
+
+#define ubr_vec_and(_vd, _vs) \
+	__ubr_vec_bitmap_op(and, (_vd)->bitmap, (_vd)->bitmap, (_vs)->bitmap)
+
+#define ubr_vec_set(_v, _bit)   set_bit((_bit), (_v)->bitmap)
+#define ubr_vec_clear(_v, _bit) clear_bit((_bit), (_v)->bitmap)
+#define ubr_vec_test(_v, _bit)  test_bit((_bit), (_v)->bitmap)
+
+#define ubr_vec_foreach(_v, _bit) \
+	for_each_set_bit(_bit, (_v)->bitmap, UBR_MAX_PORTS)
+
+
+/* Control buffer */
+struct ubr_cb {
+	/* Ingress port index */
+	unsigned pidx:UBR_MAX_PORTS_SHIFT;
+
+	/* Ingress filter results. Setting these in a port's
+	 * ingress_cb will _disable_ the corresponding filter,
+	 * i.e. the result is always treated as ok for all packets
+	 * ingressing on that port. */
+	unsigned vlan_ok:1;
+	unsigned stp_ok:1;
+	unsigned sa_ok:1;
+	
+	unsigned sa_learning:1;
+
+	struct ubr_vlan *vlan;
+
+	struct ubr_vec vec;
+};
+#define ubr_cb(_skb) ((struct ubr_cb *)(_skb)->cb)
+
+
 /* enum ubr_stp_state { */
 /* 	UBR_STP_BLOCKING, */
 /* #define	UBR_STP_LISTENING UBR_STP_BLOCKING */
@@ -27,6 +68,51 @@
 /* 	refcount_t refcount; */
 /* }; */
 
+/* enum ubr_addr_type { */
+/* 	UBR_ADDR_MAC, */
+/* 	UBR_ADDR_IP4, */
+/* 	UBR_ADDR_IP6, */
+/* }; */
+
+/* struct ubr_addr { */
+/* 	enum ubr_addr_type type; */
+/* 	union { */
+/* 		u8 mac[ETH_ALEN]; */
+/* 		be32 ip4; */
+/* 		struct in6_addr ip6; */
+/* 	} */
+/* }; */
+
+/* struct ubr_dst { */
+/* 	struct rhash_head node; */
+
+/* 	struct ubr_addr addr; */
+
+/* 	unsigned vector:1; */
+/* 	unsigned offload:1; */
+/* }; */
+
+/* struct ubr_dst_port { */
+/* 	unsigned port:UBR_MAX_PORTS_SHIFT; */
+/* 	unsigned dynamic:1; */
+/* 	unsigned external:1; */
+
+/* 	struct ubr_dst dst; */
+
+/* 	unsigned long age; */
+/* }; */
+
+/* struct ubr_dst_vector { */
+/* 	struct ubr_vector vector; */
+/* 	struct ubr_dst dst; */
+/* }; */
+
+/* struct ubr_fdb { */
+/* 	struct hlist_node node; */
+/* 	u16 fid; */
+
+/* 	struct rhashtable dsts; */
+/* } */
 
 struct ubr_vlan {
 	struct ubr *ubr;
@@ -35,8 +121,8 @@ struct ubr_vlan {
 
 	unsigned sa_learning:1;
 
-	unsigned long *members;
-	unsigned long *tagged;
+	struct ubr_vec members;
+	struct ubr_vec tagged;
 
 	/* struct ubr_fdb *fdb; */
 	/* struct ubr_stp *stp; */
@@ -44,13 +130,9 @@ struct ubr_vlan {
 	struct rcu_head rcu;
 };
 
-
-struct ubr_cb;
-
 struct ubr_port {
-	struct ubr *ubr;
 	struct net_device *dev;
-	struct ubr_cb *ingress_cb;
+	struct ubr_cb ingress_cb;
 
 	struct rcu_head rcu;
 };
@@ -68,63 +150,18 @@ static inline struct ubr_port *ubr_port_get_rtnl(const struct net_device *dev)
 struct ubr {
 	struct net_device *dev;
 
-	struct ubr_port* ports;
-	size_t ports_max;
-
-	unsigned long *active;
+	struct ubr_vec active;
 	u16 vlan_proto;
 
 	DECLARE_HASHTABLE(vlans, 8);
 	DECLARE_HASHTABLE(fdbs, 8);
 	DECLARE_HASHTABLE(stps, 8);
+
+	struct ubr_vec  busy;
+	struct ubr_port ports[UBR_MAX_PORTS];
 };
-
-struct ubr_cb {
-	/* Ingress port index */
-	unsigned idx:UBR_MAX_PORTS_SHIFT;
-
-	/* Ingress filter results. Setting these in a port's
-	 * ingress_cb will _disable_ the corresponding filter,
-	 * i.e. the result is assumed to be ok. */
-	unsigned vlan_ok:1;
-	unsigned stp_ok:1;
-	unsigned sa_ok:1;
-	
-	unsigned sa_learning:1;
-
-	struct ubr_vlan *vlan;
-
-	unsigned long dst[0];
-};
-#define ubr_cb(_skb) ((struct ubr_cb *)(_skb)->cb)
-
-#define ubr_vec_foreach(_ubr, _vec, _id) \
-	for_each_set_bit(_id, (_vec), (_ubr)->ports_max)
-
-#define ubr_port_foreach(_ubr, _id) \
-	ubr_vec_foreach(_ubr, (_ubr)->active, _id)
-
-#define ubr_vec_size(_ubr) \
-	(BITS_TO_LONGS((_ubr)->ports_max) * sizeof(unsigned long))
-
-#define ubr_vec_sizeof(_ubr, _obj) \
-	(sizeof(_obj) + ubr_vec_size(_ubr))
-
-static inline void *ubr_alloc_with_vec(struct ubr *ubr, size_t size, gfp_t flags)
-{
-	size += ubr_vec_size(ubr);
-	return kmalloc(size, flags);
-}
-
-static inline void *ubr_zalloc_with_vec(struct ubr *ubr, size_t size, gfp_t flags)
-{
-	return ubr_alloc_with_vec(ubr, size, flags | __GFP_ZERO);
-}
-
-static inline unsigned long *ubr_zalloc_vec(struct ubr *ubr, gfp_t flags)
-{
-	return ubr_alloc_with_vec(ubr, 0, flags | __GFP_ZERO);
-}
+#define ubr_from_port(_port) \
+	container_of((_port), struct ubr, ports[(_port)->ingress_cb.pidx])
 
 
 /* ubr-dev.c */
