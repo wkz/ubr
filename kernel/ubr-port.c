@@ -22,7 +22,6 @@ static void __ubr_port_cleanup(struct rcu_head *head)
 {
 	struct ubr_port *p = container_of(head, struct ubr_port, rcu);
 
-	dev_put(p->dev);
 	memset(p, 0, sizeof(*p));
 }
 
@@ -59,9 +58,6 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 	/* err = ubr_switchdev_port_init(p); */
 	/* if (err) */
 	/* 	return err; */
-
-	if (dev != ubr->dev)
-		dev_hold(dev);
 
 	smp_wmb();
 	ubr_vec_set(&ubr->busy, pidx);
@@ -141,6 +137,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	if (err)
 		goto err_clear_allmulti;
 
+	dev->priv_flags |= IFF_UBR_PORT;
 	return 0;
 
 err_clear_allmulti:
@@ -159,6 +156,7 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 {
 	struct ubr_port *p = ubr_port_get_rtnl(dev);
 
+	dev->priv_flags &= ~IFF_UBR_PORT;
 	netdev_rx_handler_unregister(dev);
 	dev_set_allmulti(dev, -1);
 	dev_set_promiscuity(dev, -1);

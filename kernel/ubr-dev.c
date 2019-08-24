@@ -115,6 +115,23 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	return 	register_netdevice(dev);
 }
 
+void ubr_dev_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct ubr *ubr = netdev_priv(dev);
+	int pidx;
+
+	ubr_vec_foreach(&ubr->busy, pidx) {
+		if (!pidx)
+			continue;
+
+		ubr_port_del(ubr, ubr->ports[pidx].dev);
+	}
+
+	/* TODO cleanup VLAN db */
+
+	unregister_netdevice_queue(ubr->dev, head);
+}
+
 struct rtnl_link_ops ubr_link_ops __read_mostly = {
 	.kind			= "ubr",
 	.priv_size		= sizeof(struct ubr),
@@ -124,7 +141,7 @@ struct rtnl_link_ops ubr_link_ops __read_mostly = {
 	/* .validate		= ubr_validate, */
 	.newlink		= ubr_dev_newlink,
 	/* .changelink		= ubr_dev_changelink, */
-	/* .dellink		= ubr_dev_delete, */
+	.dellink		= ubr_dev_dellink,
 	/* .get_size		= ubr_get_size, */
 	/* .fill_info		= ubr_fill_info, */
 
@@ -135,22 +152,78 @@ struct rtnl_link_ops ubr_link_ops __read_mostly = {
 	/* .fill_slave_info	= ubr_port_fill_slave_info, */
 };
 
+
+static int ubr_device_event(struct notifier_block *unused, unsigned long event,
+			    void *data)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(data);
+	struct ubr_port *p;
+
+	if (!netif_is_ubr_port(dev))
+		return NOTIFY_DONE;
+
+	p = ubr_port_get_rtnl(dev);
+
+	switch (event) {
+	/* case NETDEV_CHANGEMTU: */
+	/* 	ubr_mtu_auto_adjust(ubr); */
+	/* 	break; */
+
+	/* case NETDEV_CHANGE: */
+	/* 	ubr_port_carrier_check(p, &notified); */
+	/* 	break; */
+
+	/* case NETDEV_FEAT_CHANGE: */
+	/* 	netdev_update_features(ubr->dev); */
+	/* 	break; */
+
+	case NETDEV_UNREGISTER:
+		ubr_port_del(ubr_from_port(p), dev);
+		break;
+
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
+
+	/* case NETDEV_RESEND_IGMP: */
+	/* 	/\* Propagate to master device *\/ */
+	/* 	call_netdevice_notifiers(event, ubr->dev); */
+	/* 	break; */
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ubr_device_notifier = {
+	.notifier_call = ubr_device_event
+};
+
 static int __init ubr_module_init(void)
 {
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
+	err = register_netdevice_notifier(&ubr_device_notifier);
+	if (err)
+		goto err;
+
 	err = rtnl_link_register(&ubr_link_ops);
 	if (err)
-		return err;
+		goto err_unreg_notifier;
 
 	return 0;
+
+err_unreg_notifier:
+	unregister_netdevice_notifier(&ubr_device_notifier);
+err:
+	return err;
 }
 
 static void __exit ubr_module_cleanup(void)
 {
 	rtnl_link_unregister(&ubr_link_ops);
+	unregister_netdevice_notifier(&ubr_device_notifier);
 }
 
 module_init(ubr_module_init);

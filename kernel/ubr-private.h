@@ -6,6 +6,13 @@
 
 #include <net/rtnetlink.h>
 
+/* TODO move to linux/netdevice.h */
+#define IFF_UBR_PORT (1 << 31)
+static inline bool netif_is_ubr_port(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_UBR_PORT;
+}
+
 #define UBR_MAX_PORTS_SHIFT 8
 #define UBR_MAX_PORTS      (1 << UBR_MAX_PORTS_SHIFT)
 
