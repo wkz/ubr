@@ -103,16 +103,30 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	ubr->dev = dev;
 	ubr->vlan_proto = ETH_P_8021Q;
 	hash_init(ubr->vlans);
-	hash_init(ubr->fdbs);
 	hash_init(ubr->stps);
 
-	err = ubr_vlan_init(ubr);
+	err = ubr_vlan_newlink(ubr);
 	if (err)
-		return err;
+		goto err;
+
+	err = ubr_fdb_newlink(&ubr->fdb);
+	if (err)
+		goto err_vlan_dellink;
 
 	ubr_port_init(ubr, 0, dev);
 
-	return 	register_netdevice(dev);
+	err = register_netdevice(dev);
+	if (err)
+		goto err_fdb_dellink;
+
+	return 0;
+
+err_fdb_dellink:
+	ubr_fdb_dellink(&ubr->fdb);
+err_vlan_dellink:
+	ubr_vlan_dellink(ubr);
+err:
+	return err;
 }
 
 void ubr_dev_dellink(struct net_device *dev, struct list_head *head)
@@ -127,7 +141,8 @@ void ubr_dev_dellink(struct net_device *dev, struct list_head *head)
 		ubr_port_del(ubr, ubr->ports[pidx].dev);
 	}
 
-	/* TODO cleanup VLAN db */
+	ubr_fdb_dellink(&ubr->fdb);
+	ubr_vlan_dellink(ubr);
 
 	unregister_netdevice_queue(ubr->dev, head);
 }
@@ -204,9 +219,13 @@ static int __init ubr_module_init(void)
 
 	BUILD_BUG_ON(sizeof(struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	err = register_netdevice_notifier(&ubr_device_notifier);
+	err = ubr_fdb_cache_init();
 	if (err)
 		goto err;
+	
+	err = register_netdevice_notifier(&ubr_device_notifier);
+	if (err)
+		goto err_cache_fini;
 
 	err = rtnl_link_register(&ubr_link_ops);
 	if (err)
@@ -216,6 +235,8 @@ static int __init ubr_module_init(void)
 
 err_unreg_notifier:
 	unregister_netdevice_notifier(&ubr_device_notifier);
+err_cache_fini:
+	ubr_fdb_cache_fini();
 err:
 	return err;
 }
@@ -224,6 +245,7 @@ static void __exit ubr_module_cleanup(void)
 {
 	rtnl_link_unregister(&ubr_link_ops);
 	unregister_netdevice_notifier(&ubr_device_notifier);
+	ubr_fdb_cache_fini();
 }
 
 module_init(ubr_module_init);

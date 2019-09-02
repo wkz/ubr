@@ -108,9 +108,9 @@ inject "port broadcast" 1 \
 inject "host unknown uc" 0 \
        "02:00:de:ad:00:01" "02:ed:00:00:00:01" untagged \
        $(exclude 0)
-inject "port unknown uc" 0 \
+inject "port unknown uc" 1 \
        "02:00:de:ad:00:01" "02:ed:00:00:01:01" untagged \
-       $(exclude 0)
+       $(exclude 1)
 
 inject "host learning: insert" 0 \
        "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \

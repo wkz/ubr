@@ -46,6 +46,8 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 	cb->stp_ok = 1;
 	cb->sa_ok = 1;
 
+	cb->sa_learning = 1;
+
 	/* Allow egress on all ports execpt this one. */
 	bitmap_fill(cb->vec.bitmap, UBR_MAX_PORTS);
 	ubr_vec_clear(&cb->vec, pidx);

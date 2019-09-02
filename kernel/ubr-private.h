@@ -38,17 +38,17 @@ struct ubr_vec {
 /* Control buffer */
 struct ubr_cb {
 	/* Ingress port index */
-	unsigned pidx:UBR_MAX_PORTS_SHIFT;
+	u32 pidx:UBR_MAX_PORTS_SHIFT;
 
 	/* Ingress filter results. Setting these in a port's
 	 * ingress_cb will _disable_ the corresponding filter,
 	 * i.e. the result is always treated as ok for all packets
 	 * ingressing on that port. */
-	unsigned vlan_ok:1;
-	unsigned stp_ok:1;
-	unsigned sa_ok:1;
+	u32 vlan_ok:1;
+	u32 stp_ok:1;
+	u32 sa_ok:1;
 	
-	unsigned sa_learning:1;
+	u32 sa_learning:1;
 
 	struct ubr_vlan *vlan;
 
@@ -75,51 +75,52 @@ struct ubr_cb {
 /* 	refcount_t refcount; */
 /* }; */
 
-/* enum ubr_addr_type { */
-/* 	UBR_ADDR_MAC, */
-/* 	UBR_ADDR_IP4, */
-/* 	UBR_ADDR_IP6, */
-/* }; */
+enum ubr_addr_type {
+	UBR_ADDR_MAC,
+	UBR_ADDR_IP4,
+	UBR_ADDR_IP6,
+};
 
-/* struct ubr_addr { */
-/* 	enum ubr_addr_type type; */
-/* 	union { */
-/* 		u8 mac[ETH_ALEN]; */
-/* 		be32 ip4; */
-/* 		struct in6_addr ip6; */
-/* 	} */
-/* }; */
+struct ubr_fdb_addr {
+	u32 type:3;
+	u32 vid:16;
 
-/* struct ubr_dst { */
-/* 	struct rhash_head node; */
+	union {
+		u8 mac[ETH_ALEN];
+		__be32 ip4;
+		struct in6_addr ip6;
+	};
+};
 
-/* 	struct ubr_addr addr; */
+enum ubr_fdb_proto {
+	UBR_FDB_DYNAMIC,
+	UBR_FDB_EXTERNAL,
+	UBR_FDB_USER,
+};
 
-/* 	unsigned vector:1; */
-/* 	unsigned offload:1; */
-/* }; */
+struct ubr_fdb_node {
+	struct rhash_head rhnode;
 
-/* struct ubr_dst_port { */
-/* 	unsigned port:UBR_MAX_PORTS_SHIFT; */
-/* 	unsigned dynamic:1; */
-/* 	unsigned external:1; */
+	struct ubr_fdb_addr addr;
 
-/* 	struct ubr_dst dst; */
+	union {
+		struct ubr_vec vec;
+		u32 pidx:UBR_MAX_PORTS_SHIFT;
+	};
 
-/* 	unsigned long age; */
-/* }; */
+	u32 proto:8;
+	u32 offloaded:1;
 
-/* struct ubr_dst_vector { */
-/* 	struct ubr_vector vector; */
-/* 	struct ubr_dst dst; */
-/* }; */
+	/* TODO on separate cache line like bridge? */
+	unsigned long tstamp;
 
-/* struct ubr_fdb { */
-/* 	struct hlist_node node; */
-/* 	u16 fid; */
+	struct rcu_head rcu;
+};
 
-/* 	struct rhashtable dsts; */
-/* } */
+struct ubr_fdb {
+	struct rhashtable nodes;
+	unsigned long ageing_timeout;
+};
 
 struct ubr_vlan {
 	struct ubr *ubr;
@@ -130,6 +131,11 @@ struct ubr_vlan {
 
 	struct ubr_vec members;
 	struct ubr_vec tagged;
+
+	struct ubr_vec routers;
+	struct ubr_vec mcflood;
+	struct ubr_vec bcflood;
+	struct ubr_vec ucflood;
 
 	/* struct ubr_fdb *fdb; */
 	/* struct ubr_stp *stp; */
@@ -159,11 +165,12 @@ struct ubr {
 
 	struct ubr_vec active;
 	u16 vlan_proto;
-
+	
 	DECLARE_HASHTABLE(vlans, 8);
-	DECLARE_HASHTABLE(fdbs, 8);
 	DECLARE_HASHTABLE(stps, 8);
 
+	struct ubr_fdb fdb;
+	
 	struct ubr_vec  busy;
 	struct ubr_port ports[UBR_MAX_PORTS];
 };
@@ -173,6 +180,16 @@ struct ubr {
 
 /* ubr-dev.c */
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
+
+/* ubr-fdb.c */
+void ubr_fdb_learn(struct ubr_fdb *fdb, struct sk_buff *skb);
+
+
+int  ubr_fdb_newlink(struct ubr_fdb *fdb);
+void ubr_fdb_dellink(struct ubr_fdb *fdb);
+
+int __init ubr_fdb_cache_init(void);
+void       ubr_fdb_cache_fini(void);
 
 /* ubr-forward.c */
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
@@ -194,6 +211,7 @@ struct ubr_vlan *ubr_vlan_find(struct ubr *ubr, u16 vid);
 int              ubr_vlan_del (struct ubr_vlan *vlan);
 struct ubr_vlan *ubr_vlan_new (struct ubr *ubr, u16 vid, u16 fid, u16 sid);
 
-int ubr_vlan_init(struct ubr *ubr);
+int  ubr_vlan_newlink(struct ubr *ubr);
+void ubr_vlan_dellink(struct ubr *ubr);
 
 #endif	/* __UBR_PRIVATE_H */

@@ -76,8 +76,8 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 
 	ubr_vec_and(&cb->vec, &cb->vlan->members);
 
-	/* if (cb->sa_learning && cb->vlan->sa_learning) */
-	/* 	ubr_fdb_learn(ubr, skb); */
+	if (cb->sa_learning && cb->vlan->sa_learning)
+		ubr_fdb_learn(&ubr->fdb, skb);
 
 	/* dst = ubr_fdb_lookup(ubr, skb); */
 	if (!dst) {

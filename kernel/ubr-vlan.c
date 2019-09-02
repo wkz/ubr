@@ -104,6 +104,7 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 
 	vlan->ubr = ubr;
 	vlan->vid = vid;
+	vlan->sa_learning = 1;
 
 	/* vlan->fdb = ubr_fdb_get(ubr, fid); */
 	/* if (IS_ERR(vlan->fdb)) { */
@@ -124,7 +125,7 @@ err:
 	return ERR_PTR(err);
 }
 
-int ubr_vlan_init(struct ubr *ubr)
+int ubr_vlan_newlink(struct ubr *ubr)
 {
 	struct ubr_vlan *vlan0;
 
@@ -133,4 +134,9 @@ int ubr_vlan_init(struct ubr *ubr)
 		return PTR_ERR(vlan0);
 
 	return 0;
+}
+
+void ubr_vlan_dellink(struct ubr *ubr)
+{
+	/* TODO: cleanup all vlans */
 }
