@@ -27,6 +27,15 @@ struct ubr_vec {
 #define ubr_vec_and(_vd, _vs) \
 	__ubr_vec_bitmap_op(and, (_vd)->bitmap, (_vd)->bitmap, (_vs)->bitmap)
 
+#define ubr_vec_or(_vd, _vs) \
+	__ubr_vec_bitmap_op(or, (_vd)->bitmap, (_vd)->bitmap, (_vs)->bitmap)
+
+#define ubr_vec_zero(_v) \
+	__ubr_vec_bitmap_op(zero, (_v)->bitmap)
+
+#define ubr_vec_fill(_v) \
+	__ubr_vec_bitmap_op(fill, (_v)->bitmap)
+
 #define ubr_vec_set(_v, _bit)   set_bit((_bit), (_v)->bitmap)
 #define ubr_vec_clear(_v, _bit) clear_bit((_bit), (_v)->bitmap)
 #define ubr_vec_test(_v, _bit)  test_bit((_bit), (_v)->bitmap)
@@ -88,7 +97,9 @@ struct ubr_fdb_addr {
 	union {
 		u8 mac[ETH_ALEN];
 		__be32 ip4;
+#if IS_ENABLED(CONFIG_IPV6)
 		struct in6_addr ip6;
+#endif
 	};
 };
 
@@ -102,11 +113,7 @@ struct ubr_fdb_node {
 	struct rhash_head rhnode;
 
 	struct ubr_fdb_addr addr;
-
-	union {
-		struct ubr_vec vec;
-		u32 pidx:UBR_MAX_PORTS_SHIFT;
-	};
+	struct ubr_vec vec;
 
 	u32 proto:8;
 	u32 offloaded:1;
@@ -137,7 +144,6 @@ struct ubr_vlan {
 	struct ubr_vec bcflood;
 	struct ubr_vec ucflood;
 
-	/* struct ubr_fdb *fdb; */
 	/* struct ubr_stp *stp; */
 
 	struct rcu_head rcu;
@@ -182,8 +188,7 @@ struct ubr {
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
 
 /* ubr-fdb.c */
-void ubr_fdb_learn(struct ubr_fdb *fdb, struct sk_buff *skb);
-
+void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb);
 
 int  ubr_fdb_newlink(struct ubr_fdb *fdb);
 void ubr_fdb_dellink(struct ubr_fdb *fdb);

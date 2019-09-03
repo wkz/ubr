@@ -98,26 +98,50 @@ sleep 1
 
 echo inject
 
-inject "host broadcast" 0 \
+inject "broadcast: host" 0 \
        "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
        $(exclude 0)
-inject "port broadcast" 1 \
+inject "broadcast: port" 1 \
        "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" untagged \
        $(exclude 1)
 
-inject "host unknown uc" 0 \
+inject "unknown uc: host" 0 \
        "02:00:de:ad:00:01" "02:ed:00:00:00:01" untagged \
        $(exclude 0)
-inject "port unknown uc" 1 \
+inject "unknown uc: port" 1 \
        "02:00:de:ad:00:01" "02:ed:00:00:01:01" untagged \
        $(exclude 1)
 
-inject "host learning: insert" 0 \
+inject "unknown mc: host" 0 \
+       "03:00:de:ad:00:01" "02:ed:00:00:00:01" untagged \
+       $(exclude 0)
+inject "unknown mc: port" 1 \
+       "03:00:de:ad:00:01" "02:ed:00:00:01:01" untagged \
+       $(exclude 1)
+
+inject "learning: host insert" 0 \
        "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
        $(exclude 0)
-inject "host learning: reply" 1 \
+inject "learning: port reply/insert" 1 \
        "02:ed:00:00:00:01" "02:ed:00:00:01:01" untagged \
        0
+inject "learning: port reply" 0 \
+       "02:ed:00:00:01:01" "02:ed:00:00:00:01" untagged \
+       1
+
+inject "learning: host move" 0 \
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" untagged \
+       $(exclude 0)
+inject "learning: port move" 1 \
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
+       $(exclude 1)
+inject "learning: host move ok" 2 \
+       "02:ed:00:00:01:01" "02:ed:00:00:02:01" untagged \
+       0
+inject "learning: port move ok" 2 \
+       "02:ed:00:00:00:01" "02:ed:00:00:02:01" untagged \
+       1
+
 
 sleep 1
 report

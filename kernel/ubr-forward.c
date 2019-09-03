@@ -51,7 +51,6 @@ drop:
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
-	struct ubr_dst *dst = NULL;
 
 	/* Run all enabled ingress checks and record the results, but
 	 * don't drop filtered frames until ubr sockets have had a
@@ -76,30 +75,10 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 
 	ubr_vec_and(&cb->vec, &cb->vlan->members);
 
-	if (cb->sa_learning && cb->vlan->sa_learning)
-		ubr_fdb_learn(&ubr->fdb, skb);
+	ubr_fdb_forward(&ubr->fdb, skb);
 
-	/* dst = ubr_fdb_lookup(ubr, skb); */
-	if (!dst) {
-		/* TODO: filter based on packet type, e.g. unknown
-		 * unicast etc. */
-		ubr_deliver(ubr, skb);
-		return;
-	}
-
-	/* switch (dst->type) { */
-	/* case UBR_DST_ONE: */
-	/* 	if (!test_bit(dst->port, cb->dst)) */
-	/* 		goto drop; */
-
-	/* 	return ubr_deliver_one(ubr, skb, dst->port); */
-
-	/* case UBR_DST_MANY: */
-	/* 	bitmap_and(cb->dst, cb->dst, dst->ports, ubr->ports_max); */
-	/* 	ubr_deliver(ubr, skb); */
-	/* 	return; */
-	/* } */
-
+	ubr_deliver(ubr, skb);
+	return;
 drop:
 	kfree(skb);
 /* consumed: */

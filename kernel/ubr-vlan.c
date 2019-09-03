@@ -84,7 +84,7 @@ static void ubr_vlan_del_rcu(struct rcu_head *head)
 
 int ubr_vlan_del(struct ubr_vlan *vlan)
 {
-	bitmap_zero(vlan->members.bitmap, UBR_MAX_PORTS);
+	ubr_vec_zero(&vlan->members);
 	call_rcu(&vlan->rcu, ubr_vlan_del_rcu);
 	return 0;
 }
@@ -106,19 +106,15 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 	vlan->vid = vid;
 	vlan->sa_learning = 1;
 
-	/* vlan->fdb = ubr_fdb_get(ubr, fid); */
-	/* if (IS_ERR(vlan->fdb)) { */
-	/* 	err = PTR_ERR(vlan->fdb); */
-	/* 	vlan->fdb = NULL; */
-	/* 	goto err; */
-	/* } */
+	/* Flood unknown traffic by default. */
+	ubr_vec_fill(&vlan->mcflood);
+	ubr_vec_fill(&vlan->bcflood);
+	ubr_vec_fill(&vlan->ucflood);
 
 	hash_add(ubr->vlans, &vlan->node, vlan->vid);
 	return vlan;
 
 err:
-	/* if (vlan && vlan->fdb) */
-	/* 	ubr_fdb_put(vlan->fdb); */
 	if (vlan)
 		kfree(vlan);
 
