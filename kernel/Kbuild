@@ -1,2 +1,2 @@
 obj-m := ubr.o
-ubr-y := ubr-dev.o ubr-fdb.o ubr-forward.o ubr-port.o ubr-vlan.o
+ubr-y := ubr-dev.o ubr-fdb.o ubr-genl.o ubr-forward.o ubr-port.o ubr-vlan.o
