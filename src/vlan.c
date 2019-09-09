@@ -22,6 +22,7 @@
 #include <libmnl/libmnl.h>
 #include <sys/socket.h>
 
+#include "ubr-genl.h"
 #include "cmdl.h"
 #include "vlan.h"
 

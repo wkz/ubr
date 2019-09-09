@@ -1,5 +1,6 @@
 # XXX: Relocate strlcat.c to $topdir/lib when autotools arrives
-LDLIBS = -lmnl
+LDLIBS += -lmnl
+CPPFLAGS += -I../kernel
 
 all: ubr
 
