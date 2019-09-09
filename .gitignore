@@ -1,8 +1,10 @@
 *~
 *.o
+.cache.mk
 kernel/.tmp_versions/
 kernel/Module.symvers
 kernel/modules.order
 kernel/*.ko
 kernel/*.cmd
 kernel/*.mod.c
+src/ubr
