@@ -26,11 +26,11 @@ static void about(struct cmdl *cmdl)
 		"Usage: %s [OPTIONS] COMMAND [ARGS] ...\n"
 		"\n"
 		"Options:\n"
-		" -h, --help  Print help for last given command\n"
+		" -h, --help  Show help for last given command\n"
 		" -j, --json  Read JSON from STDIN, or write to STDOUT\n"
 		"\n"
 		"Commands:\n"
-		" fdb         Manage the forwarding (MAC) database\n"
+		" fdb         Manage forwarding (MAC) database\n"
 		" port        Manage bridge ports\n"
 		" vlan        Manage bridge VLANs\n",
 		cmdl->argv[0]);
