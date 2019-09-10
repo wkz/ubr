@@ -26,6 +26,9 @@
 #include "cmdl.h"
 #include "vlan.h"
 
+static uint16_t vid = -1;
+
+
 static void cmd_vlan_add_help(struct cmdl *cmdl)
 {
 	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] [set VLAN-SETTINGS]\n",
@@ -38,28 +41,7 @@ static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 	uint16_t vid;
 	int err;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
-	struct opt *opt;
 	struct nlattr *attrs;
-	struct opt opts[] = {
-		{ "vid",		OPT_KEYVAL,	NULL },
-		{ NULL }
-	};
-
-	/* Rewind optind to include media in the option list */
-//	cmdl->optind--;
-	if (parse_opts(opts, cmdl) < 0)
-		return -EINVAL;
-
-	if (!(opt = get_opt(opts, "vid"))) {
-		fprintf(stderr, "error, missing vlan VID\n");
-		return -EINVAL;
-	}
-
-	vid = atoi(opt->val);
-	if (vid < 1 || vid > 4095) {
-		fprintf(stderr, "error, invalid VLAN %s\n", opt->val);
-		return -EINVAL;
-	}
 
 	if (!(nlh = msg_init(buf, UBR_NL_VLAN_ADD))) {
 		fprintf(stderr, "error, message initialisation failed\n");
@@ -95,6 +77,14 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		{ "add",	cmd_vlan_add,		cmd_vlan_add_help },
 		{ NULL }
 	};
+	char *arg;
+
+	arg = shift_cmdl(cmdl);
+	vid = atoi(arg);
+	if (vid < 1 || vid > 4095) {
+		fprintf(stderr, "error, invalid VLAN %s\n", arg);
+		return -EINVAL;
+	}
 
 	return run_cmd(nlh, cmd, cmds, cmdl, NULL);
 }
