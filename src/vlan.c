@@ -28,7 +28,7 @@
 
 static void cmd_vlan_add_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] [VLAN-SETTINGS]\n",
+	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] [set VLAN-SETTINGS]\n",
 		cmdl->argv[0]);
 }
 
@@ -80,12 +80,12 @@ void cmd_vlan_help(struct cmdl *cmdl)
 		"Usage: %s vlan COMMAND [ARGS] ...\n"
 		"\n"
 		"COMMANDS\n"
-		" add		- Add VLAN to bridge\n"
-		" del		- Remove VLAN from bridge\n"
-		" attach        - Attach port(s) to VLAN\n"
-		" detach        - Detach port(s) from VLAN\n"
-		" set           - Set various VLAN properties\n"
-		" list          - List vlans\n", cmdl->argv[0]);
+		" VID add		- Add VLAN to bridge\n"
+		" VID del		- Remove VLAN from bridge\n"
+		" VID attach        - Attach port(s) to VLAN\n"
+		" VID detach        - Detach port(s) from VLAN\n"
+		" VID set           - Set various VLAN properties\n",
+		cmdl->argv[0]);
 }
 
 int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,

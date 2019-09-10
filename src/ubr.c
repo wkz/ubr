@@ -31,8 +31,8 @@ static void about(struct cmdl *cmdl)
 		"\n"
 		"Commands:\n"
 		" fdb         Manage forwarding (MAC) database\n"
-		" port        Manage bridge ports\n"
-		" vlan        Manage bridge VLANs\n",
+		" port PORT   Manage bridge ports\n"
+		" vlan VID    Manage bridge VLANs\n",
 		cmdl->argv[0]);
 }
 
