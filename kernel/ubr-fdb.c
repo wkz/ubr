@@ -17,6 +17,76 @@ static const struct rhashtable_params ubr_rht_params = {
 	.locks_mul = 1,
 };
 
+static void ubr_fdb_node_delete_rcu(struct rcu_head *rcu)
+{
+	struct ubr_fdb_node *node = container_of(rcu, struct ubr_fdb_node, rcu);
+
+	kmem_cache_free(ubr_fdb_cache, node);
+}
+
+static inline bool ubr_fdb_node_is_old(struct ubr_fdb *fdb,
+				       struct ubr_fdb_node *node)
+{
+	return (node->proto == UBR_FDB_DYNAMIC) &&
+		time_is_before_jiffies(node->tstamp + fdb->ageing_timeout);
+}
+
+int ubr_fdb_flush(struct ubr_fdb *fdb, struct ubr_fdb_flush_op op)
+{
+	struct rhashtable_iter iter;
+	struct ubr_fdb_node *node;
+
+	rhashtable_walk_enter(&fdb->nodes, &iter);
+	rhashtable_walk_start(&iter);
+
+	while ((node = rhashtable_walk_next(&iter))) {
+		if (IS_ERR(node)) {
+			if (PTR_ERR(node) == -EAGAIN)
+				continue;
+
+			break;
+		}
+
+		if (op.per_port && !ubr_vec_test(&node->vec, op.pidx))
+			continue;
+
+		if (op.per_vlan && node->addr.vid != op.vid)
+			continue;
+
+		if (op.per_proto) {
+			if (node->proto != op.proto)
+				continue;
+
+			if (op.proto == UBR_FDB_DYNAMIC &&
+			    op.old && !ubr_fdb_node_is_old(fdb, node))
+				continue;
+		}
+
+		rhashtable_remove_fast(&fdb->nodes, &node->rhnode,
+				       ubr_rht_params);
+		call_rcu(&node->rcu, ubr_fdb_node_delete_rcu);
+	}
+
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
+
+	return IS_ERR(node) ? PTR_ERR(node) : 0;
+}
+
+static void ubr_fdb_age(struct work_struct *work)
+{
+	struct ubr_fdb *fdb = container_of(work, struct ubr_fdb, age_work.work);
+	struct ubr_fdb_flush_op op = {
+		.per_proto = true,
+		.proto = UBR_FDB_DYNAMIC,
+		.old = true,
+	};
+
+	ubr_fdb_flush(fdb, op);
+	queue_delayed_work(system_long_wq, &fdb->age_work,
+			   fdb->ageing_timeout / 2);
+}
+
 static void ubr_fdb_learn(struct ubr_fdb *fdb, struct sk_buff *skb)
 {
 	struct ubr_fdb_node *node;
@@ -95,6 +165,9 @@ void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb)
 lookup:
 	node = rhashtable_lookup(&fdb->nodes, &key, ubr_rht_params);
 	if (likely(node)) {
+		if (unlikely(ubr_fdb_node_is_old(fdb, node)))
+			goto flood;
+
 		filter = &node->vec;
 
 		if (unlikely(key.type == UBR_ADDR_IP4 ||
@@ -105,13 +178,16 @@ lookup:
 			ubr_vec_and(&cb->vec, &grp_n_routers);
 			return;
 		}
-	} else if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
-		if (is_broadcast_ether_addr(eth_hdr(skb)->h_dest))
-			filter = &cb->vlan->bcflood;
-		else
-			filter = &cb->vlan->mcflood;
 	} else {
-		filter = &cb->vlan->ucflood;
+	flood:
+		if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
+			if (is_broadcast_ether_addr(eth_hdr(skb)->h_dest))
+				filter = &cb->vlan->bcflood;
+			else
+				filter = &cb->vlan->mcflood;
+		} else {
+			filter = &cb->vlan->ucflood;
+		}
 	}
 
 	ubr_vec_and(&cb->vec, filter);
@@ -119,15 +195,29 @@ lookup:
 
 int ubr_fdb_newlink(struct ubr_fdb *fdb)
 {
-	fdb->ageing_timeout = 300;
+	int err;
 
-	return rhashtable_init(&fdb->nodes, &ubr_rht_params);
+	fdb->ageing_timeout = msecs_to_jiffies(300 * MSEC_PER_SEC);
+
+	err = rhashtable_init(&fdb->nodes, &ubr_rht_params);
+	if (err)
+		return err;
+
+	INIT_DELAYED_WORK(&fdb->age_work, ubr_fdb_age);
+
+	queue_delayed_work(system_long_wq, &fdb->age_work,
+			   fdb->ageing_timeout / 2);
+
+	return 0;
 }
 
 void ubr_fdb_dellink(struct ubr_fdb *fdb)
 {
-	/* TODO */
-	/* ubr_fdb_flush(fdb, 0, NULL); */
+	struct ubr_fdb_flush_op op = {};
+
+	cancel_delayed_work_sync(&fdb->age_work);
+
+	ubr_fdb_flush(fdb, op);
 	rhashtable_destroy(&fdb->nodes);
 }
 

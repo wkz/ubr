@@ -84,6 +84,19 @@ struct ubr_cb {
 /* 	refcount_t refcount; */
 /* }; */
 
+struct ubr_fdb_flush_op {
+	u32 per_port:1;
+	u32 pidx:UBR_MAX_PORTS_SHIFT;
+
+	u32 per_vlan:1;
+	u32 vid:16;
+
+	u32 per_proto:1;
+	u32 proto:8;
+
+	u32 old:1;
+};
+
 enum ubr_addr_type {
 	UBR_ADDR_MAC,
 	UBR_ADDR_IP4,
@@ -127,6 +140,7 @@ struct ubr_fdb_node {
 struct ubr_fdb {
 	struct rhashtable nodes;
 	unsigned long ageing_timeout;
+	struct delayed_work age_work;
 };
 
 struct ubr_vlan {
