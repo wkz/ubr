@@ -44,9 +44,37 @@ static int ubr_vlan_add_cmd(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
+static int ubr_vlan_del_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	u16 vid;
+	int err;
+
+	if (!info->attrs || !info->attrs[UBR_NLA_VLAN])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, UBR_NLA_VLAN_MAX,
+			       info->attrs[UBR_NLA_VLAN],
+			       ubr_nl_vlan_policy, info->extack);
+	if (err)
+		return err;
+
+	if (!attrs[UBR_NLA_VLAN_VID])
+		return -EINVAL;
+
+	vid = nla_get_u16(attrs[UBR_NLA_VLAN_VID]);
+	printk(KERN_NOTICE "Del VLAN %u, hello\n", vid);
+
+	return 0;
+}
+
 static const struct genl_ops ubr_genl_ops[] = { {
 		.cmd    = UBR_NL_VLAN_ADD,
 		.doit   = ubr_vlan_add_cmd,
+		.dumpit = NULL,
+	}, {
+		.cmd    = UBR_NL_VLAN_DEL,
+		.doit   = ubr_vlan_del_cmd,
 		.dumpit = NULL,
 	},
 };

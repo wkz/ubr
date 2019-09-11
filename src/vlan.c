@@ -54,6 +54,30 @@ static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 	return msg_doit(nlh, NULL, NULL);
 }
 
+static void cmd_vlan_del_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s vlan VID del\n", cmdl->argv[0]);
+}
+
+static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
+			  struct cmdl *cmdl, void *data)
+{
+	struct nlattr *attrs;
+	int err;
+
+	nlh = msg_init(UBR_NL_VLAN_DEL);
+	if (!nlh) {
+		fprintf(stderr, "error, message initialisation failed\n");
+		return -1;
+	}
+
+	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
+	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
+	mnl_attr_nest_end(nlh, attrs);
+
+	return msg_doit(nlh, NULL, NULL);
+}
+
 void cmd_vlan_help(struct cmdl *cmdl)
 {
 	fprintf(stderr,
@@ -73,6 +97,7 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 {
 	const struct cmd cmds[] = {
 		{ "add",	cmd_vlan_add,		cmd_vlan_add_help },
+		{ "del",	cmd_vlan_del,		cmd_vlan_del_help },
 		{ NULL }
 	};
 	char *arg;
