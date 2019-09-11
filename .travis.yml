@@ -20,17 +20,15 @@ compiler:
 addons:
   apt:
     packages:
-      - tree
       - libmnl-dev
-      - linux-headers-generic
 
 install:
   - cd /tmp
   - wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.72.tar.xz
   - tar xf linux-4.19.72.tar.xz
+  - cd -
 
 script:
   - make
-  - tree
   - ./src/ubr -h
 
