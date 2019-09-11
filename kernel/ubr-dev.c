@@ -231,7 +231,7 @@ static int __init ubr_module_init(void)
 	if (err)
 		goto err_unreg_notifier;
 
-	err = ubr_genl_init();
+	err = ubr_netlink_init();
 	if (err)
 		goto err_unreg_notifier;
 
@@ -247,7 +247,7 @@ err:
 
 static void __exit ubr_module_cleanup(void)
 {
-	ubr_genl_exit();
+	ubr_netlink_exit();
 	rtnl_link_unregister(&ubr_link_ops);
 	unregister_netdevice_notifier(&ubr_device_notifier);
 	ubr_fdb_cache_fini();

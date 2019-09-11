@@ -1,5 +1,5 @@
-#ifndef UBR_GENL_H_
-#define UBR_GENL_H_
+#ifndef UBR_NETLINK_H_
+#define UBR_NETLINK_H_
 
 /* Netlink commands */
 enum {
@@ -26,4 +26,4 @@ enum {
 	UBR_NLA_VLAN_MAX = __UBR_NLA_VLAN_MAX - 1
 };
 
-#endif /* UBR_GENL_H_ */
+#endif /* UBR_NETLINK_H_ */

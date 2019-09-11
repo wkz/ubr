@@ -7,7 +7,7 @@
 #include <linux/export.h>
 #include <net/genetlink.h>
 
-#include "ubr-genl.h"
+#include "ubr-netlink.h"
 
 static const struct nla_policy ubr_nl_policy[UBR_NLA_MAX + 1] = {
 	[UBR_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
@@ -72,24 +72,21 @@ int ubr_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
 	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, ubr_nl_policy, NULL);
 }
 
-int ubr_genl_init(void)
+int ubr_netlink_init(void)
 {
 	int err;
 
-	printk(KERN_NOTICE "ubr: registering genl\n");
 	err = genl_register_family(&family);
 	if (err)
 		goto err;
 
-	printk(KERN_NOTICE "ubr: genl family registered\n");
 	return 0;
 err:
 	return err;
 }
 
-int ubr_genl_exit(void)
+int ubr_netlink_exit(void)
 {
-	printk(KERN_NOTICE "ubr: deregistering genl\n");
 	return genl_unregister_family(&family);
 }
 

@@ -213,9 +213,9 @@ void       ubr_fdb_cache_fini(void);
 /* ubr-forward.c */
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 
-/* ubr-genl.c */
-int ubr_genl_init(void);
-int ubr_genl_exit(void);
+/* ubr-netlink.c */
+int ubr_netlink_init(void);
+int ubr_netlink_exit(void);
 
 /* ubr-port.c */
 struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device *dev);
