@@ -16,6 +16,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 
 #include <linux/genetlink.h>
 
@@ -78,6 +79,76 @@ static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 	return msg_doit(nlh, NULL, NULL);
 }
 
+static void cmd_vlan_attach_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s vlan VID attach PORT-LIST [tagged]",
+		cmdl->argv[0]);
+}
+
+static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
+			   struct cmdl *cmdl, void *data)
+{
+	struct nlattr *attrs;
+	char *arg;
+	int err;
+
+	/* Read port name(s), required argument */
+	arg = shift_cmdl(cmdl);
+	if (!arg) {
+		cmd_vlan_attach_help(cmdl);
+		return -EINVAL;
+	}
+
+	nlh = msg_init(UBR_NL_VLAN_ATTACH);
+	if (!nlh) {
+		fprintf(stderr, "error, message initialisation failed\n");
+		return -1;
+	}
+
+	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
+	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(arg));
+	mnl_attr_nest_end(nlh, attrs);
+
+	return msg_doit(nlh, NULL, NULL);
+}
+
+
+static void cmd_vlan_detach_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s vlan VID detach PORT-LIST [tagged]",
+		cmdl->argv[0]);
+}
+
+static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
+			   struct cmdl *cmdl, void *data)
+{
+	struct nlattr *attrs;
+	char *arg;
+	int err;
+
+	/* Read port name(s), required argument */
+	arg = shift_cmdl(cmdl);
+	if (!arg) {
+		cmd_vlan_detach_help(cmdl);
+		return -EINVAL;
+	}
+
+	nlh = msg_init(UBR_NL_VLAN_DETACH);
+	if (!nlh) {
+		fprintf(stderr, "error, message initialisation failed\n");
+		return -1;
+	}
+
+	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
+	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(arg));
+	mnl_attr_nest_end(nlh, attrs);
+
+	return msg_doit(nlh, NULL, NULL);
+}
+
+
 void cmd_vlan_help(struct cmdl *cmdl)
 {
 	fprintf(stderr,
@@ -98,6 +169,8 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 	const struct cmd cmds[] = {
 		{ "add",	cmd_vlan_add,		cmd_vlan_add_help },
 		{ "del",	cmd_vlan_del,		cmd_vlan_del_help },
+		{ "attach",	cmd_vlan_attach,	cmd_vlan_attach_help },
+		{ "detach",	cmd_vlan_detach,	cmd_vlan_detach_help },
 		{ NULL }
 	};
 	char *arg;
