@@ -7,14 +7,19 @@
  *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Richard Alpe <richard.alpe@ericsson.com>
+ *		Joachim Nilsson <troglobit@gmail.com>
  */
 
-#ifndef _UBR_MSG_H
-#define _UBR_MSG_H
+#ifndef UBR_MSG_H_
+#define UBR_MSG_H_
 
-struct nlmsghdr *msg_init(char *buf, int cmd);
-int msg_doit(struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
-int msg_dumpit(struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
-int parse_attrs(const struct nlattr *attr, void *data);
+#include <stdlib.h>
 
-#endif
+struct nlmsghdr *msg_init(int cmd);
+
+int msg_doit    (struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
+int msg_dumpit  (struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
+
+int parse_attrs (const struct nlattr *attr, void *data);
+
+#endif /* UBR_MSG_H_ */

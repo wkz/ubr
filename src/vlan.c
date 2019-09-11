@@ -38,19 +38,17 @@ static void cmd_vlan_add_help(struct cmdl *cmdl)
 static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 			  struct cmdl *cmdl, void *data)
 {
-	uint16_t vid;
-	int err;
-	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlattr *attrs;
+	int err;
 
-	if (!(nlh = msg_init(buf, UBR_NL_VLAN_ADD))) {
+	nlh = msg_init(UBR_NL_VLAN_ADD);
+	if (!nlh) {
 		fprintf(stderr, "error, message initialisation failed\n");
 		return -1;
 	}
 
 	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
 	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
-
 	mnl_attr_nest_end(nlh, attrs);
 
 	return msg_doit(nlh, NULL, NULL);
