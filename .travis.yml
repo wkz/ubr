@@ -21,12 +21,16 @@ addons:
   apt:
     packages:
       - libmnl-dev
+      - libelf-dev
 
 install:
-  - cd /tmp
+  - pushd /tmp
   - wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.72.tar.xz
   - tar xf linux-4.19.72.tar.xz
-  - cd -
+  - cd linux-4.19.72/
+  - make defconfig
+  - make -j5
+  - popd
 
 script:
   - make
