@@ -1,0 +1,28 @@
+# Travis CI integration
+# Defaults to GNU GCC and autotools: ./configure && make && make test
+language: c
+
+# Use docker for quicker builds, it now allows https://docs.travis-ci.com/user/apt/
+sudo: false
+
+# Attempt to use Ubuntu 16.04
+dist: xenial
+group: travis_latest
+
+# Test build with only GCC for now
+#- clang
+compiler:
+  - gcc
+
+addons:
+  apt:
+    packages:
+      - tree
+      - libmnl-dev
+      - linux-headers-generic
+
+script:
+  - make
+  - tree
+  - ./src/ubr -h
+
