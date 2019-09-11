@@ -3,7 +3,7 @@
 language: c
 
 env:
-  - KDIR=/tmp/linux-4.19.72
+  - KDIR=/tmp/linux-5.2.14
 
 # Use docker for quicker builds, it now allows https://docs.travis-ci.com/user/apt/
 sudo: false
@@ -25,10 +25,10 @@ addons:
 
 install:
   - pushd /tmp
-  - wget https://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.19.72.tar.xz
-  - tar xf linux-4.19.72.tar.xz
-  - cd linux-4.19.72/
-  - make defconfig
+  - wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.2.14.tar.xz
+  - tar xf linux-5.2.14.tar.xz
+  - cd linux-5.2.14/
+  - make tinyconfig
   - make -j5
   - popd
 
