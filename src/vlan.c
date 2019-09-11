@@ -79,6 +79,10 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 
 	/* Read VLAN id, required argument */
 	arg = shift_cmdl(cmdl);
+	if (!arg) {
+		cmd_vlan_help(cmdl);
+		return -EINVAL;
+	}
 
 	vid = atoi(arg);
 	if (vid < 1 || vid > 4095) {
