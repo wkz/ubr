@@ -113,10 +113,14 @@ int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 	const struct cmd *cmd;
 
 	if ((cmdl->optind) >= cmdl->argc) {
-		if (caller->help)
+		if (caller->help) {
 			(caller->help)(cmdl);
+			return 0;
+		}
+
 		return -EINVAL;
 	}
+
 	name = cmdl->argv[cmdl->optind];
 	(cmdl->optind)++;
 
