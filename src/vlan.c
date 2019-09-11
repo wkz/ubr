@@ -31,8 +31,8 @@ static uint16_t vid = -1;
 
 static void cmd_vlan_add_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] [set VLAN-SETTINGS]\n",
-		cmdl->argv[0]);
+	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] "
+		"[set VLAN-SETTINGS]\n", cmdl->argv[0]);
 }
 
 static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
