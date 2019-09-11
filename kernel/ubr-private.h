@@ -5,6 +5,7 @@
 #include <linux/slab.h>
 
 #include <net/rtnetlink.h>
+#include <net/genetlink.h>
 
 /* TODO move to linux/netdevice.h */
 #define IFF_UBR_PORT (1 << 31)
@@ -236,5 +237,11 @@ struct ubr_vlan *ubr_vlan_new (struct ubr *ubr, u16 vid, u16 fid, u16 sid);
 
 int  ubr_vlan_newlink(struct ubr *ubr);
 void ubr_vlan_dellink(struct ubr *ubr);
+
+int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info);
+int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info);
+
+int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info);
+int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info);
 
 #endif	/* __UBR_PRIVATE_H */

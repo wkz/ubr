@@ -1,6 +1,13 @@
 #include <linux/if_vlan.h>
 
+#include "ubr-netlink.h"
 #include "ubr-private.h"
+
+const struct nla_policy ubr_nl_vlan_policy[UBR_NLA_VLAN_MAX + 1] = {
+	[UBR_NLA_VLAN_UNSPEC]	= { .type = NLA_UNSPEC },
+	[UBR_NLA_VLAN_VID]	= { .type = NLA_U16    },
+	[UBR_NLA_VLAN_PORT]	= { .type = NLA_U32    },
+};
 
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 {
@@ -135,4 +142,105 @@ int ubr_vlan_newlink(struct ubr *ubr)
 void ubr_vlan_dellink(struct ubr *ubr)
 {
 	/* TODO: cleanup all vlans */
+}
+
+static int __get_vid(struct genl_info *info, struct nlattr **attrs, u16 *vid)
+{
+	int err;
+
+	if (!info->attrs || !info->attrs[UBR_NLA_VLAN])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, UBR_NLA_VLAN_MAX,
+			       info->attrs[UBR_NLA_VLAN],
+			       ubr_nl_vlan_policy, info->extack);
+	if (err)
+		return err;
+
+	if (!attrs[UBR_NLA_VLAN_VID])
+		return -EINVAL;
+
+	*vid = nla_get_u16(attrs[UBR_NLA_VLAN_VID]);
+
+	return 0;
+}
+
+static int __get_port(struct genl_info *info, struct nlattr **attrs, u32 *port)
+{
+	if (!attrs[UBR_NLA_VLAN_PORT])
+		return -EINVAL;
+
+	*port = nla_get_u32(attrs[UBR_NLA_VLAN_PORT]);
+
+	return 0;
+}
+
+int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	u16 vid;
+	int err;
+
+	err = __get_vid(info, attrs, &vid);
+	if (err)
+		return err;
+
+	printk(KERN_NOTICE "Add VLAN %u, hello\n", vid);
+
+	return 0;
+}
+
+int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	u16 vid;
+	int err;
+
+	err = __get_vid(info, attrs, &vid);
+	if (err)
+		return err;
+
+	printk(KERN_NOTICE "Del VLAN %u, hello\n", vid);
+
+	return 0;
+}
+
+int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	u32 ifindex;
+	u16 vid;
+	int err;
+
+	err = __get_vid(info, attrs, &vid);
+	if (err)
+		return err;
+
+	err = __get_port(info, attrs, &ifindex);
+	if (err)
+		return err;
+
+	printk(KERN_NOTICE "Attach to VLAN %u, port ifindex %d\n", vid, ifindex);
+
+	return 0;
+}
+
+int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	u32 ifindex;
+	u16 vid;
+	int err;
+
+	err = __get_vid(info, attrs, &vid);
+	if (err)
+		return err;
+
+	err = __get_port(info, attrs, &ifindex);
+	if (err)
+		return err;
+
+	printk(KERN_NOTICE "Detach to VLAN %u, port ifindex %d\n", vid, ifindex);
+
+	return 0;
 }
