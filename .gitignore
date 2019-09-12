@@ -1,9 +1,13 @@
 *~
 *.o
 .cache.mk
+GPATH
+GRTAGS
+GTAGS
 kernel/.tmp_versions/
 kernel/Module.symvers
 kernel/modules.order
+kernel/*.d
 kernel/*.ko
 kernel/*.cmd
 kernel/*.mod.c
