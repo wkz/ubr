@@ -29,7 +29,7 @@ install:
   - tar xf linux-5.2.14.tar.xz
   - cd linux-5.2.14/
   - make tinyconfig
-  - ./scripts/config -e BINFMT_ELF -e MODULES
+  - ./scripts/config -e BINFMT_ELF -e MODULES -e NET
   - make olddefconfig
   - make -j5
   - popd
