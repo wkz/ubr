@@ -14,7 +14,6 @@ static const struct rhashtable_params ubr_rht_params = {
 	.key_offset = offsetof(struct ubr_fdb_node, addr),
 	.key_len = sizeof(struct ubr_fdb_addr),
 	.automatic_shrinking = true,
-	.locks_mul = 1,
 };
 
 static void ubr_fdb_node_delete_rcu(struct rcu_head *rcu)
