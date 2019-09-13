@@ -27,7 +27,7 @@ UBR := ubr [-j|--json] [dev BR]
 # idiosyncratic. So lists have to be quoted unfortunately.
 PORT-LIST := PORT [PORT [...]]
 
-UBR add [max_ports N] ...
+UBR add
 UBR del
 
 UBR port PORT-LIST attach [index auto|N] PORT-SETTINGS
@@ -51,16 +51,16 @@ UBR vlan VID set VLAN-SETTINGS
 
 VLAN-SETTINGS :=
 	[learning on|off]
-	[fdb auto|N]
-	[stg N]
+	[stp-group N]
 
-UBR fdb FID dst GROUP|LLADDR add [PORT-LIST] [protocol N]
-UBR fdb FID dst GROUP|LLADDR del [PORT-LIST]
-UBR fdb FID dst GROUP|LLADDR attach PORT-LIST
-UBR fdb FID dst GROUP|LLADDR detach PORT-LIST
+UBR fdb [vlan VID] flush
+UBR fdb [vlan VID] FID dst GROUP|LLADDR add [PORT-LIST] [protocol N]
+UBR fdb [vlan VID] FID dst GROUP|LLADDR del [PORT-LIST]
+UBR fdb [vlan VID] FID dst GROUP|LLADDR attach PORT-LIST
+UBR fdb [vlan VID] FID dst GROUP|LLADDR detach PORT-LIST
 
 # Spanning Tree Group seems to be the most used term.
-UBR stg <SID> port <PORT-LIST> set <STP-STATE>
+UBR stp-group <SID> port <PORT-LIST> set <STP-STATE>
 
 STP-STATE := blocking|listening|learning|forwarding
 ```
