@@ -227,6 +227,8 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 		 struct netlink_ext_ack *extack);
 int ubr_port_del(struct ubr *ubr, struct net_device *dev);
 
+int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info);
+
 /* ubr-vlan.c */
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb);
 

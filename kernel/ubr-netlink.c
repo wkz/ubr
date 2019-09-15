@@ -13,6 +13,7 @@ static const struct nla_policy ubr_nl_policy[UBR_NLA_MAX + 1] = {
 	[UBR_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
 	[UBR_NLA_IFINDEX]	= { .type = NLA_U32,    },
 	[UBR_NLA_VLAN]		= { .type = NLA_NESTED, },
+	[UBR_NLA_PORT]		= { .type = NLA_NESTED, },
 };
 
 static const struct genl_ops ubr_genl_ops[] = { {
@@ -35,13 +36,17 @@ static const struct genl_ops ubr_genl_ops[] = { {
 		.cmd    = UBR_NL_VLAN_DETACH,
 		.doit   = ubr_vlan_nl_detach_cmd,
 		.policy = ubr_nl_policy,
+	}, {
+		.cmd    = UBR_NL_PORT_SET,
+		.doit   = ubr_port_nl_set_cmd,
+		.policy = ubr_nl_policy,
 	},
 };
 
 static struct genl_family family = {
 	.name     = "ubr",
 	.version  = 1,
-	.maxattr  = 2,		/* XXX */
+	.maxattr  = 10,		/* XXX */
 	.netnsok  = false,
 	.module   = THIS_MODULE,
 	.ops      = ubr_genl_ops,

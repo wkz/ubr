@@ -5,7 +5,14 @@
 #include <net/dsa.h>
 #include <net/rtnetlink.h>
 
+#include "ubr-netlink.h"
 #include "ubr-private.h"
+
+const struct nla_policy ubr_nl_port_policy[UBR_NLA_PORT_MAX + 1] = {
+	[UBR_NLA_PORT_UNSPEC]   = { .type = NLA_UNSPEC },
+	[UBR_NLA_PORT_IFINDEX]  = { .type = NLA_U32    },
+	[UBR_NLA_PORT_PVID]     = { .type = NLA_U16    },
+};
 
 static rx_handler_result_t ubr_port_rx_handler(struct sk_buff **pskb)
 {
@@ -164,5 +171,49 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 	dev_set_promiscuity(dev, -1);
 	netdev_upper_dev_unlink(dev, ubr->dev);
 	ubr_port_cleanup(p);
+	return 0;
+}
+
+static int __get_port(struct genl_info *info, struct nlattr **attrs,
+		      u32 *port)
+{
+	int err;
+
+	if (!info->attrs || !info->attrs[UBR_NLA_PORT])
+		return -EINVAL;
+
+	err = nla_parse_nested(attrs, UBR_NLA_PORT_MAX,
+			       info->attrs[UBR_NLA_PORT],
+			       ubr_nl_port_policy, info->extack);
+	if (err)
+		return err;
+
+	if (!attrs[UBR_NLA_PORT_IFINDEX])
+		return -EINVAL;
+
+	*port = nla_get_u32(attrs[UBR_NLA_PORT_IFINDEX]);
+
+	return 0;
+}
+
+int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_PORT_MAX + 1];
+	struct net_device *dev, *port;
+	int ifindex;
+	u16 vid = 0;
+	int err;
+
+	err = __get_port(info, attrs, &ifindex);
+	if (err)
+		return err;
+	port = dev_get_by_index(genl_info_net(info), ifindex);
+
+	if (attrs[UBR_NLA_PORT_PVID])
+		vid = nla_get_u16(attrs[UBR_NLA_PORT_PVID]);
+
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Set port %s on %s pvid %u, hello\n", port->name, dev->name, vid);
+
 	return 0;
 }

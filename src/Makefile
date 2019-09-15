@@ -1,10 +1,9 @@
-# XXX: Relocate strlcat.c to $topdir/lib when autotools arrives
-LDLIBS += -lmnl
+LDLIBS   += -lmnl
 CPPFLAGS += -I../kernel
 
 all: ubr
 
-ubr: ubr.o cmdl.o msg.o vlan.o
+ubr: ubr.o cmdl.o msg.o port.o vlan.o
 
 clean:
 	$(RM) ubr
@@ -12,4 +11,4 @@ clean:
 distclean: clean
 	$(RM) *.o *~
 
-ubr.o cmdl.o vlan.o msg.o: Makefile cmdl.h msg.h vlan.h
+ubr.o cmdl.o vlan.o msg.o: Makefile cmdl.h msg.h port.h vlan.h

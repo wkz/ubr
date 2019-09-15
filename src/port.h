@@ -1,5 +1,5 @@
 /*
- * vlan.c	ubr VLAN functionality.
+ * port.c	ubr port functionality.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -10,13 +10,13 @@
  *		Joachim Nilsson <troglobit@gmail.com>
  */
 
-#ifndef UBR_VLAN_H_
-#define UBR_VLAN_H_
+#ifndef UBR_PORT_H_
+#define UBR_PORT_H_
 
 #include "cmdl.h"
 #include "msg.h"
 
-int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl, void *data);
-void cmd_vlan_help(struct cmdl *cmdl);
+int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl, void *data);
+void cmd_port_help(struct cmdl *cmdl);
 
-#endif /* UBR_VLAN_H_ */
+#endif /* UBR_PORT_H_ */

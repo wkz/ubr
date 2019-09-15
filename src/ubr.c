@@ -18,9 +18,10 @@
 #include <unistd.h>
 #include <linux/rtnetlink.h>
 
-#include "cmdl.h"
-#include "vlan.h"
 #include "private.h"
+#include "cmdl.h"
+#include "port.h"
+#include "vlan.h"
 
 char *bridge    = "ubr0";
 int   help_flag = 0;
@@ -130,6 +131,7 @@ int main(int argc, char *argv[])
 	const struct cmd cmds[] = {
 		{ "add",        cmd_add,        cmd_add_help  },
 		{ "del",        cmd_del,        cmd_del_help  },
+		{ "port",       cmd_port,       cmd_port_help },
 		{ "vlan",       cmd_vlan,       cmd_vlan_help },
 		{ NULL }
 	};
