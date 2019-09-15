@@ -92,13 +92,25 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 			   struct cmdl *cmdl, void *data)
 {
 	struct nlattr *attrs;
-	char *arg;
+	struct opt opts[] = {
+		{ "tagged",		OPT_KEY,	NULL },
+		{ NULL }
+	};
+	struct opt *opt;
+	char *ifname;
+	int tagged = 0;
 	int err;
 
 	/* Read port name(s), required argument */
-	arg = shift_cmdl(cmdl);
-	if (!arg) {
+	ifname = shift_cmdl(cmdl);
+	if (!ifname) {
 		cmd_vlan_attach_help(cmdl);
+		return -EINVAL;
+	}
+
+	if (parse_opts(opts, cmdl) < 0) {
+		if (help_flag)
+			(cmd->help)(cmdl);
 		return -EINVAL;
 	}
 
@@ -110,7 +122,10 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
 	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
-	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(arg));
+	tagged = has_opt(opts, "tagged");
+	printf("Adding port %s %stagged to bridge %s\n", ifname, tagged ? "" : "not ", bridge);
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_TAGGED, tagged);
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(ifname));
 	mnl_attr_nest_end(nlh, attrs);
 
 	return msg_doit(nlh, NULL, NULL);
