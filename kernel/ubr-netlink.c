@@ -20,31 +20,24 @@ static const struct nla_policy ubr_nl_policy[UBR_NLA_MAX + 1] = {
 static const struct genl_ops ubr_genl_ops[] = { {
 		.cmd    = UBR_NL_FDB_FLUSH,
 		.doit   = ubr_fdb_nl_flush_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_VLAN_ADD,
 		.doit   = ubr_vlan_nl_add_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_VLAN_DEL,
 		.doit   = ubr_vlan_nl_del_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_VLAN_SET,
 		.doit   = ubr_vlan_nl_set_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_VLAN_ATTACH,
 		.doit   = ubr_vlan_nl_attach_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_VLAN_DETACH,
 		.doit   = ubr_vlan_nl_detach_cmd,
-		.policy = ubr_nl_policy,
 	}, {
 		.cmd    = UBR_NL_PORT_SET,
 		.doit   = ubr_port_nl_set_cmd,
-		.policy = ubr_nl_policy,
 	},
 };
 
