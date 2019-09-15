@@ -18,7 +18,8 @@
 #include "vlan.h"
 #include "cmdl.h"
 
-int help_flag;
+char *bridge    = "ubr0";
+int   help_flag = 0;
 
 static void about(struct cmdl *cmdl)
 {
@@ -26,13 +27,16 @@ static void about(struct cmdl *cmdl)
 		"Usage: %s [OPTIONS] COMMAND [ARGS] ...\n"
 		"\n"
 		"Options:\n"
-		" -h, --help  Show help for last given command\n"
-		" -j, --json  Read JSON from STDIN, or write to STDOUT\n"
+		" -i, --iface BRIDGE  Bridge interface to manage, default ubr0\n"
+		" -h, --help          Show help for last given command\n"
+		" -j, --json          Read JSON from STDIN, or write to STDOUT\n"
 		"\n"
 		"Commands:\n"
-		" fdb         Manage forwarding (MAC) database\n"
-		" port PORT   Manage bridge ports\n"
-		" vlan VID    Manage bridge VLANs\n",
+		" add                 Create a new bridge\n"
+		" del                 Delete a bridge\n"
+		" fdb                 Manage forwarding (MAC) database\n"
+		" port PORT           Manage bridge ports\n"
+		" vlan VID            Manage bridge VLANs\n",
 		cmdl->argv[0]);
 }
 
@@ -43,7 +47,8 @@ int main(int argc, char *argv[])
 	struct cmdl cmdl;
 	const struct cmd cmd = {"ubr", NULL, about};
 	struct option long_options[] = {
-		{"help", no_argument, 0, 'h'},
+		{"help",  no_argument,       0, 'h'},
+		{"iface", required_argument, 0, 'i'},
 		{0, 0, 0, 0}
 	};
 	const struct cmd cmds[] = {
@@ -54,8 +59,7 @@ int main(int argc, char *argv[])
 	do {
 		int option_index = 0;
 
-		i = getopt_long(argc, argv, "h", long_options, &option_index);
-
+		i = getopt_long(argc, argv, "hi:", long_options, &option_index);
 		switch (i) {
 		case 'h':
 			/*
@@ -64,6 +68,11 @@ int main(int argc, char *argv[])
 			 */
 			help_flag = 1;
 			break;
+
+		case 'i':
+			bridge = optarg;
+			break;
+
 		case -1:
 			/* End of options */
 			break;

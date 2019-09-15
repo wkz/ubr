@@ -1,5 +1,5 @@
 /*
- * vlan.c	ubr VLAN functionality.
+ * ubr		Frontend for the unassuming bridge.
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -9,14 +9,10 @@
  * Authors:	Richard Alpe <richard.alpe@ericsson.com>
  *		Joachim Nilsson <troglobit@gmail.com>
  */
+#ifndef UBR_PRIVATE_H_
+#define UBR_PRIVATE_H_
 
-#ifndef _UBR_VLAN_H
-#define _UBR_VLAN_H
+extern char *bridge;
+extern int help_flag;
 
-#include "cmdl.h"
-#include "msg.h"
-
-int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl, void *data);
-void cmd_vlan_help(struct cmdl *cmdl);
-
-#endif
+#endif /* UBR_PRIVATE_H_ */

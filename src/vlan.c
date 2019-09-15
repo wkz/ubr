@@ -26,6 +26,7 @@
 #include "ubr-netlink.h"
 #include "cmdl.h"
 #include "vlan.h"
+#include "private.h"
 
 #define VLAN_OPTS "[learning on|off] "
 
