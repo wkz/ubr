@@ -16,7 +16,9 @@
 #include <stdlib.h>
 
 struct nlmsghdr *msg_init(int cmd);
+struct nlmsghdr *msg_init2(int cmd, int flags);
 
+int msg_query2  (struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
 int msg_doit    (struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
 int msg_dumpit  (struct nlmsghdr *nlh, mnl_cb_t callback, void *data);
 

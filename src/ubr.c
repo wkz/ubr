@@ -14,12 +14,60 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <linux/rtnetlink.h>
 
 #include "vlan.h"
 #include "cmdl.h"
 
 char *bridge    = "ubr0";
 int   help_flag = 0;
+
+
+static void cmd_add_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s -i NAME add", cmdl->argv[0]);
+}
+
+static int cmd_add(struct nlmsghdr *nlh, const struct cmd *cmd,
+		   struct cmdl *cmdl, void *data)
+{
+	struct ifinfomsg *ifm;
+	struct nlattr *linkinfo;
+
+	nlh = msg_init2(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE | NLM_F_EXCL);
+	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+	ifm->ifi_family = AF_UNSPEC;
+
+	mnl_attr_put_str(nlh, IFLA_IFNAME, bridge);
+	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
+	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
+	mnl_attr_nest_end(nlh, linkinfo);
+
+	return msg_query2(nlh, NULL, NULL);
+}
+
+static void cmd_del_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s -i NAME del", cmdl->argv[0]);
+}
+
+static int cmd_del(struct nlmsghdr *nlh, const struct cmd *cmd,
+		   struct cmdl *cmdl, void *data)
+{
+	struct ifinfomsg *ifm;
+	struct nlattr *linkinfo;
+
+	nlh = msg_init2(RTM_DELLINK, NLM_F_REQUEST | NLM_F_ACK);
+	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+	ifm->ifi_family = AF_UNSPEC;
+
+	mnl_attr_put_str(nlh, IFLA_IFNAME, bridge);
+	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
+	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
+	mnl_attr_nest_end(nlh, linkinfo);
+
+	return msg_query2(nlh, NULL, NULL);
+}
 
 static void about(struct cmdl *cmdl)
 {
@@ -47,12 +95,14 @@ int main(int argc, char *argv[])
 	struct cmdl cmdl;
 	const struct cmd cmd = {"ubr", NULL, about};
 	struct option long_options[] = {
-		{"help",  no_argument,       0, 'h'},
-		{"iface", required_argument, 0, 'i'},
-		{0, 0, 0, 0}
+		{ "help",  no_argument,       0, 'h' },
+		{ "iface", required_argument, 0, 'i' },
+		{ 0, 0, 0, 0 }
 	};
 	const struct cmd cmds[] = {
-		{ "vlan",	cmd_vlan,	cmd_vlan_help},
+		{ "add",        cmd_add,        cmd_add_help  },
+		{ "del",        cmd_del,        cmd_del_help  },
+		{ "vlan",       cmd_vlan,       cmd_vlan_help },
 		{ NULL }
 	};
 

@@ -52,12 +52,12 @@ static int family_id_cb(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_OK;
 }
 
-static struct mnl_socket *msg_send(struct nlmsghdr *nlh)
+static struct mnl_socket *msg_send(int bus, struct nlmsghdr *nlh)
 {
 	struct mnl_socket *nl;
 	int ret;
 
-	nl = mnl_socket_open(NETLINK_GENERIC);
+	nl = mnl_socket_open(bus);
 	if (nl == NULL) {
 		perror("mnl_socket_open");
 		return NULL;
@@ -105,7 +105,7 @@ static int msg_query(struct nlmsghdr *nlh, mnl_cb_t callback, void *data)
 	seq = time(NULL);
 	nlh->nlmsg_seq = seq;
 
-	nl = msg_send(nlh);
+	nl = msg_send(NETLINK_GENERIC, nlh);
 	if (!nl)
 		return -ENOTSUP;
 
@@ -157,13 +157,12 @@ int msg_dumpit(struct nlmsghdr *nlh, mnl_cb_t callback, void *data)
 static void msg_exit(void)
 {
 	free(buf);
+	buf = NULL;
 }
 
-struct nlmsghdr *msg_init(int cmd)
+static struct nlmsghdr *__init(int type, int flags)
 {
-	struct genlmsghdr *genl;
 	struct nlmsghdr *nlh;
-	int family;
 
 	if (!buf) {
 		len = MNL_SOCKET_BUFFER_SIZE;
@@ -174,14 +173,29 @@ struct nlmsghdr *msg_init(int cmd)
 		atexit(msg_exit);
 	}
 
-	family = get_family();
-	if (family <= 0) {
-		warn("Unable to get ubr nl family id (module loaded?)");
-		return NULL;
+	if (!type) {
+		type = get_family();
+		if (type <= 0) {
+			warn("Unable to get ubr nl family id (module loaded?)");
+			return NULL;
+		}
 	}
 
 	nlh = mnl_nlmsg_put_header(buf);
-	nlh->nlmsg_type	= family;
+	nlh->nlmsg_type	 = type;
+	nlh->nlmsg_flags = flags;
+
+	return nlh;
+}
+
+struct nlmsghdr *msg_init(int cmd)
+{
+	struct genlmsghdr *genl;
+	struct nlmsghdr *nlh;
+
+	nlh = __init(0, 0);
+	if (!nlh)
+		return NULL;
 
 	genl = mnl_nlmsg_put_extra_header(nlh, sizeof(struct genlmsghdr));
 	genl->cmd = cmd;
@@ -190,4 +204,34 @@ struct nlmsghdr *msg_init(int cmd)
 	mnl_attr_put_u32(nlh, UBR_NLA_IFINDEX, if_nametoindex(bridge));
 
 	return nlh;
+}
+
+struct nlmsghdr *msg_init2(int cmd, int flags)
+{
+	struct nlmsghdr *nlh;
+
+	nlh = __init(cmd, flags);
+	if (!nlh)
+		return NULL;
+
+	return nlh;
+}
+
+int msg_query2(struct nlmsghdr *nlh, mnl_cb_t callback, void *data)
+{
+	unsigned int seq;
+	struct mnl_socket *nl;
+	int ret;
+
+	seq = time(NULL);
+	nlh->nlmsg_seq = seq;
+
+	nl = msg_send(NETLINK_ROUTE, nlh);
+	if (!nl)
+		return -ENOTSUP;
+
+	ret = msg_recv(nl, callback, data, seq);
+	mnl_socket_close(nl);
+
+	return ret;
 }
