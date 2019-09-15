@@ -7,7 +7,8 @@ const struct nla_policy ubr_nl_vlan_policy[UBR_NLA_VLAN_MAX + 1] = {
 	[UBR_NLA_VLAN_UNSPEC]   = { .type = NLA_UNSPEC },
 	[UBR_NLA_VLAN_VID]      = { .type = NLA_U16    },
 	[UBR_NLA_VLAN_PORT]     = { .type = NLA_U32    },
-	[UBR_NLA_VLAN_LEARNING] = { .type = NLA_U32    },
+	[UBR_NLA_VLAN_TAGGED]   = { .type = NLA_U32    }, /* XXX: bool */
+	[UBR_NLA_VLAN_LEARNING] = { .type = NLA_U32    }, /* XXX: bool */
 };
 
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
@@ -167,12 +168,15 @@ static int __get_vid(struct genl_info *info, struct nlattr **attrs, u16 *vid)
 }
 
 static int __get_port(struct genl_info *info, struct nlattr **attrs,
-		      u32 *port)
+		      u32 *port, u32 *tagged)
 {
 	if (!attrs[UBR_NLA_VLAN_PORT])
 		return -EINVAL;
 
 	*port = nla_get_u32(attrs[UBR_NLA_VLAN_PORT]);
+
+	if (tagged && attrs[UBR_NLA_VLAN_TAGGED])
+		*tagged = nla_get_u32(attrs[UBR_NLA_VLAN_TAGGED]);
 
 	return 0;
 }
@@ -248,7 +252,7 @@ int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
 	struct net_device *dev;
-	u32 ifindex;
+	u32 ifindex, tagged = 0;
 	u16 vid;
 	int err;
 
@@ -256,13 +260,13 @@ int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	err = __get_port(info, attrs, &ifindex);
+	err = __get_port(info, attrs, &ifindex, &tagged);
 	if (err)
 		return err;
 
 	dev = ubr_netlink_dev(info);
-	printk(KERN_NOTICE "Attach to VLAN %u, bridge %s, port ifindex %d\n",
-	       vid, dev->name, ifindex);
+	printk(KERN_NOTICE "Attach to VLAN %u, bridge %s, port ifindex %d %stagged\n",
+	       vid, dev->name, ifindex, tagged ? "" : "not ");
 
 	return 0;
 }
@@ -279,7 +283,7 @@ int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	err = __get_port(info, attrs, &ifindex);
+	err = __get_port(info, attrs, &ifindex, NULL);
 	if (err)
 		return err;
 
