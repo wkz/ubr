@@ -191,6 +191,7 @@ static int __get_learning(struct genl_info *info, struct nlattr **attrs,
 int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	struct net_device *dev;
 	u16 vid;
 	int err;
 
@@ -198,7 +199,8 @@ int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	printk(KERN_NOTICE "Add VLAN %u, hello\n", vid);
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Add VLAN %u to %s, hello\n", vid, dev->name);
 
 	return 0;
 }
@@ -206,6 +208,7 @@ int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	struct net_device *dev;
 	u16 vid;
 	int err;
 
@@ -213,7 +216,8 @@ int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	printk(KERN_NOTICE "Del VLAN %u, hello\n", vid);
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Del VLAN %u from %s, hello\n", vid, dev->name);
 
 	return 0;
 }
@@ -221,6 +225,7 @@ int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	struct net_device *dev;
 	char flags[42] = "";
 	u32 learning = -1;
 	u16 vid;
@@ -233,7 +238,8 @@ int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (!err)
 		snprintf(flags, sizeof(flags), " learning %s", learning ? "on" : "off");
 
-	printk(KERN_NOTICE "Set VLAN %u%s, hello\n", vid, flags);
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Set VLAN %u%s on %s, hello\n", vid, flags, dev->name);
 
 	return 0;
 }
@@ -241,6 +247,7 @@ int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	struct net_device *dev;
 	u32 ifindex;
 	u16 vid;
 	int err;
@@ -253,7 +260,9 @@ int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	printk(KERN_NOTICE "Attach to VLAN %u, port ifindex %d\n", vid, ifindex);
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Attach to VLAN %u, bridge %s, port ifindex %d\n",
+	       vid, dev->name, ifindex);
 
 	return 0;
 }
@@ -261,6 +270,7 @@ int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	struct net_device *dev;
 	u32 ifindex;
 	u16 vid;
 	int err;
@@ -273,7 +283,9 @@ int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	printk(KERN_NOTICE "Detach to VLAN %u, port ifindex %d\n", vid, ifindex);
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Detach to VLAN %u, bridge %s, port ifindex %d\n",
+	       vid, dev->name, ifindex);
 
 	return 0;
 }
