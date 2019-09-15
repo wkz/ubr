@@ -215,8 +215,10 @@ void       ubr_fdb_cache_fini(void);
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 
 /* ubr-netlink.c */
-int ubr_netlink_init(void);
+int ubr_netlink_init(const struct net_device_ops *ops);
 int ubr_netlink_exit(void);
+
+struct net_device *ubr_netlink_dev(struct genl_info *info);
 
 /* ubr-port.c */
 struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device *dev);

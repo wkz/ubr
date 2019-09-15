@@ -16,6 +16,7 @@ enum {
 
 enum {
 	UBR_NLA_UNSPEC,
+	UBR_NLA_IFINDEX,
 	UBR_NLA_VLAN,
 
 	__UBR_NLA_MAX,

@@ -231,7 +231,7 @@ static int __init ubr_module_init(void)
 	if (err)
 		goto err_unreg_notifier;
 
-	err = ubr_netlink_init();
+	err = ubr_netlink_init(&ubr_dev_ops);
 	if (err)
 		goto err_unreg_notifier;
 
