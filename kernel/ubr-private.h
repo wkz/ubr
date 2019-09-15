@@ -240,6 +240,7 @@ void ubr_vlan_dellink(struct ubr *ubr);
 
 int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info);
 int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info);
+int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info);
 
 int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info);
 int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info);

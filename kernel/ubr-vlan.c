@@ -4,9 +4,10 @@
 #include "ubr-private.h"
 
 const struct nla_policy ubr_nl_vlan_policy[UBR_NLA_VLAN_MAX + 1] = {
-	[UBR_NLA_VLAN_UNSPEC]	= { .type = NLA_UNSPEC },
-	[UBR_NLA_VLAN_VID]	= { .type = NLA_U16    },
-	[UBR_NLA_VLAN_PORT]	= { .type = NLA_U32    },
+	[UBR_NLA_VLAN_UNSPEC]   = { .type = NLA_UNSPEC },
+	[UBR_NLA_VLAN_VID]      = { .type = NLA_U16    },
+	[UBR_NLA_VLAN_PORT]     = { .type = NLA_U32    },
+	[UBR_NLA_VLAN_LEARNING] = { .type = NLA_U32    },
 };
 
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
@@ -165,12 +166,24 @@ static int __get_vid(struct genl_info *info, struct nlattr **attrs, u16 *vid)
 	return 0;
 }
 
-static int __get_port(struct genl_info *info, struct nlattr **attrs, u32 *port)
+static int __get_port(struct genl_info *info, struct nlattr **attrs,
+		      u32 *port)
 {
 	if (!attrs[UBR_NLA_VLAN_PORT])
 		return -EINVAL;
 
 	*port = nla_get_u32(attrs[UBR_NLA_VLAN_PORT]);
+
+	return 0;
+}
+
+static int __get_learning(struct genl_info *info, struct nlattr **attrs,
+			  u32 *learning)
+{
+	if (!attrs[UBR_NLA_VLAN_LEARNING])
+		return -EINVAL;
+
+	*learning = nla_get_u32(attrs[UBR_NLA_VLAN_LEARNING]);
 
 	return 0;
 }
@@ -201,6 +214,26 @@ int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 		return err;
 
 	printk(KERN_NOTICE "Del VLAN %u, hello\n", vid);
+
+	return 0;
+}
+
+int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
+	char flags[42] = "";
+	u32 learning = -1;
+	u16 vid;
+	int err;
+
+	err = __get_vid(info, attrs, &vid);
+	if (err)
+		return err;
+	err = __get_learning(info, attrs, &learning);
+	if (!err)
+		snprintf(flags, sizeof(flags), " learning %s", learning ? "on" : "off");
+
+	printk(KERN_NOTICE "Set VLAN %u%s, hello\n", vid, flags);
 
 	return 0;
 }

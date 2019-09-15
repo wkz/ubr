@@ -23,6 +23,10 @@ static const struct genl_ops ubr_genl_ops[] = { {
 		.doit   = ubr_vlan_nl_del_cmd,
 		.dumpit = NULL,
 	}, {
+		.cmd    = UBR_NL_VLAN_SET,
+		.doit   = ubr_vlan_nl_set_cmd,
+		.dumpit = NULL,
+	}, {
 		.cmd    = UBR_NL_VLAN_ATTACH,
 		.doit   = ubr_vlan_nl_attach_cmd,
 		.dumpit = NULL,
