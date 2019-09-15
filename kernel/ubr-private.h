@@ -211,6 +211,8 @@ void ubr_fdb_dellink(struct ubr_fdb *fdb);
 int __init ubr_fdb_cache_init(void);
 void       ubr_fdb_cache_fini(void);
 
+int ubr_fdb_nl_flush_cmd(struct sk_buff *skb, struct genl_info *info);
+
 /* ubr-forward.c */
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 

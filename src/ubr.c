@@ -20,6 +20,7 @@
 
 #include "private.h"
 #include "cmdl.h"
+#include "fdb.h"
 #include "port.h"
 #include "vlan.h"
 
@@ -131,6 +132,7 @@ int main(int argc, char *argv[])
 	const struct cmd cmds[] = {
 		{ "add",        cmd_add,        cmd_add_help  },
 		{ "del",        cmd_del,        cmd_del_help  },
+		{ "fdb",        cmd_fdb,        cmd_fdb_help  },
 		{ "port",       cmd_port,       cmd_port_help },
 		{ "vlan",       cmd_vlan,       cmd_vlan_help },
 		{ NULL }

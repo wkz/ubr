@@ -12,11 +12,16 @@
 static const struct nla_policy ubr_nl_policy[UBR_NLA_MAX + 1] = {
 	[UBR_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
 	[UBR_NLA_IFINDEX]	= { .type = NLA_U32,    },
+	[UBR_NLA_FDB]		= { .type = NLA_NESTED, },
 	[UBR_NLA_VLAN]		= { .type = NLA_NESTED, },
 	[UBR_NLA_PORT]		= { .type = NLA_NESTED, },
 };
 
 static const struct genl_ops ubr_genl_ops[] = { {
+		.cmd    = UBR_NL_FDB_FLUSH,
+		.doit   = ubr_fdb_nl_flush_cmd,
+		.policy = ubr_nl_policy,
+	}, {
 		.cmd    = UBR_NL_VLAN_ADD,
 		.doit   = ubr_vlan_nl_add_cmd,
 		.policy = ubr_nl_policy,

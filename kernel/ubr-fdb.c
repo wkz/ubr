@@ -233,3 +233,13 @@ void ubr_fdb_cache_fini(void)
 {
 	kmem_cache_destroy(ubr_fdb_cache);
 }
+
+int ubr_fdb_nl_flush_cmd(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net_device *dev;
+
+	dev = ubr_netlink_dev(info);
+	printk(KERN_NOTICE "Flush FDB on %s, hello\n", dev->name);
+
+	return 0;
+}
