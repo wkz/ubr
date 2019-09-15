@@ -17,7 +17,7 @@
 extern int help_flag;
 
 enum {
-	OPT_KEY			= (1 << 0),
+	OPT_KEY		= (1 << 0),
 	OPT_KEYVAL		= (1 << 1),
 };
 
