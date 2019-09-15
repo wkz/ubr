@@ -27,13 +27,16 @@
 #include "cmdl.h"
 #include "vlan.h"
 
+#define VLAN_OPTS "[learning on|off] "
+
+
 static uint16_t vid = -1;
 
 
 static void cmd_vlan_add_help(struct cmdl *cmdl)
 {
 	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] "
-		"[set VLAN-SETTINGS]\n", cmdl->argv[0]);
+		"[set %s]\n", cmdl->argv[0], VLAN_OPTS);
 }
 
 static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -148,6 +151,76 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	return msg_doit(nlh, NULL, NULL);
 }
 
+/* From The Practice of Programming, by Kernighan and Pike */
+#ifndef NELEMS
+#define NELEMS(array) (sizeof(array) / sizeof(array[0]))
+#endif
+
+static int atob(const char *str)
+{
+	struct {
+		const char *str;
+		size_t len;
+		int val;
+	} alt[] = {
+		{ "off",   3, 0 },
+		{ "on",    2, 1 },
+		{ "false", 5, 0 },
+		{ "true",  3, 1 },
+	};
+
+	if (!str) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	for (size_t i = 0; i < NELEMS(alt); i++) {
+		if (!strncasecmp(alt[i].str, str, alt[i].len))
+			return alt[i].val;
+	}
+
+	return -1;
+}
+
+static void cmd_vlan_set_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s vlan VID set %s\n", cmdl->argv[0], VLAN_OPTS);
+}
+
+static int cmd_vlan_set(struct nlmsghdr *nlh, const struct cmd *cmd,
+			struct cmdl *cmdl, void *data)
+{
+	struct nlattr *attrs;
+	struct opt opts[] = {
+		{ "learning",		OPT_KEYVAL,	NULL },
+		{ NULL }
+	};
+	struct opt *opt;
+	int val;
+
+	if (parse_opts(opts, cmdl) < 0) {
+		if (help_flag)
+			(cmd->help)(cmdl);
+		return -EINVAL;
+	}
+
+	nlh = msg_init(UBR_NL_VLAN_SET);
+	if (!nlh) {
+		fprintf(stderr, "error, message initialisation failed\n");
+		return -1;
+	}
+
+	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
+	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
+
+	opt = get_opt(opts, "learning");
+	if (opt && -1 != (val = atob(opt->val)))
+		mnl_attr_put_u32(nlh, UBR_NLA_VLAN_LEARNING, val);
+
+	mnl_attr_nest_end(nlh, attrs);
+
+	return msg_doit(nlh, NULL, NULL);
+}
 
 void cmd_vlan_help(struct cmdl *cmdl)
 {
@@ -171,6 +244,7 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		{ "del",	cmd_vlan_del,		cmd_vlan_del_help },
 		{ "attach",	cmd_vlan_attach,	cmd_vlan_attach_help },
 		{ "detach",	cmd_vlan_detach,	cmd_vlan_detach_help },
+		{ "set",	cmd_vlan_set,		cmd_vlan_set_help },
 		{ NULL }
 	};
 	char *arg;
