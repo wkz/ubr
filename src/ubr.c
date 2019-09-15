@@ -10,18 +10,46 @@
  *		Joachim Nilsson <troglobit@gmail.com>
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
 #include <unistd.h>
 #include <linux/rtnetlink.h>
 
-#include "vlan.h"
 #include "cmdl.h"
+#include "vlan.h"
+#include "private.h"
 
 char *bridge    = "ubr0";
 int   help_flag = 0;
 
+int atob(const char *str)
+{
+	struct {
+		const char *str;
+		size_t len;
+		int val;
+	} alt[] = {
+		{ "off",   3, 0 },
+		{ "on",    2, 1 },
+		{ "false", 5, 0 },
+		{ "true",  3, 1 },
+	};
+
+	if (!str) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	for (size_t i = 0; i < NELEMS(alt); i++) {
+		if (!strncasecmp(alt[i].str, str, alt[i].len))
+			return alt[i].val;
+	}
+
+	return -1;
+}
 
 static void cmd_add_help(struct cmdl *cmdl)
 {

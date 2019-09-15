@@ -12,7 +12,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <netdb.h>
 #include <errno.h>
 #include <arpa/inet.h>
@@ -150,37 +149,6 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	mnl_attr_nest_end(nlh, attrs);
 
 	return msg_doit(nlh, NULL, NULL);
-}
-
-/* From The Practice of Programming, by Kernighan and Pike */
-#ifndef NELEMS
-#define NELEMS(array) (sizeof(array) / sizeof(array[0]))
-#endif
-
-static int atob(const char *str)
-{
-	struct {
-		const char *str;
-		size_t len;
-		int val;
-	} alt[] = {
-		{ "off",   3, 0 },
-		{ "on",    2, 1 },
-		{ "false", 5, 0 },
-		{ "true",  3, 1 },
-	};
-
-	if (!str) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	for (size_t i = 0; i < NELEMS(alt); i++) {
-		if (!strncasecmp(alt[i].str, str, alt[i].len))
-			return alt[i].val;
-	}
-
-	return -1;
 }
 
 static void cmd_vlan_set_help(struct cmdl *cmdl)

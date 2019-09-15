@@ -12,7 +12,14 @@
 #ifndef UBR_PRIVATE_H_
 #define UBR_PRIVATE_H_
 
+/* From The Practice of Programming, by Kernighan and Pike */
+#ifndef NELEMS
+#define NELEMS(array) (sizeof(array) / sizeof(array[0]))
+#endif
+
 extern char *bridge;
 extern int help_flag;
+
+int atob(const char *str);
 
 #endif /* UBR_PRIVATE_H_ */
