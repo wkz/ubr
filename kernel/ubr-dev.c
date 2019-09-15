@@ -98,6 +98,7 @@ static int ubr_dev_newlink(struct net *src_net, struct net_device *dev,
 	struct ubr *ubr = netdev_priv(dev);
 	int err;
 
+	printk(KERN_NOTICE "ubr: new bridge %s\n", dev->name);
 	memset(ubr, 0, sizeof(*ubr));
 
 	ubr->dev = dev;
@@ -134,6 +135,7 @@ void ubr_dev_dellink(struct net_device *dev, struct list_head *head)
 	struct ubr *ubr = netdev_priv(dev);
 	int pidx;
 
+	printk(KERN_NOTICE "ubr: del bridge %s\n", dev->name);
 	ubr_vec_foreach(&ubr->busy, pidx) {
 		if (!pidx)
 			continue;
