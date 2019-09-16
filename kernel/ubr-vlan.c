@@ -58,6 +58,7 @@ int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned pidx, bool tagged)
 	}
 
 	ubr_vec_set(&vlan->members, pidx);
+
 	return 0;
 }
 
@@ -67,7 +68,8 @@ int ubr_vlan_port_del(struct ubr_vlan *vlan, unsigned pidx)
 
 	smp_wmb();
 
-	ubr_vec_clear(&vlan->tagged, pidx);		
+	ubr_vec_clear(&vlan->tagged, pidx);
+
 	return 0;
 }
 
@@ -95,6 +97,7 @@ int ubr_vlan_del(struct ubr_vlan *vlan)
 {
 	ubr_vec_zero(&vlan->members);
 	call_rcu(&vlan->rcu, ubr_vlan_del_rcu);
+
 	return 0;
 }
 
@@ -121,6 +124,7 @@ struct ubr_vlan *ubr_vlan_new(struct ubr *ubr, u16 vid, u16 fid, u16 sid)
 	ubr_vec_fill(&vlan->ucflood);
 
 	hash_add(ubr->vlans, &vlan->node, vlan->vid);
+
 	return vlan;
 
 err:

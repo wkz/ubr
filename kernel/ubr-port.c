@@ -21,7 +21,8 @@ static rx_handler_result_t ubr_port_rx_handler(struct sk_buff **pskb)
 	struct ubr_cb *cb = ubr_cb(skb);
 
 	memcpy(cb, &p->ingress_cb, sizeof(*cb));
-	ubr_forward(ubr_from_port(p), skb);	
+	ubr_forward(ubr_from_port(p), skb);
+
 	return RX_HANDLER_CONSUMED;
 }
 
@@ -59,7 +60,6 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 	ubr_vec_fill(&cb->vec);
 	ubr_vec_clear(&cb->vec, pidx);
 
-	
 	/* Put all ports in VLAN 0. */
 	cb->vlan = ubr_vlan_find(ubr, 0);
 	ubr_vlan_port_add(cb->vlan, pidx, 0);
@@ -70,6 +70,7 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 
 	smp_wmb();
 	ubr_vec_set(&ubr->busy, pidx);
+
 	return p;
 }
 
@@ -148,6 +149,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 		goto err_clear_allmulti;
 
 	dev->priv_flags |= IFF_UBR_PORT;
+
 	return 0;
 
 err_clear_allmulti:
@@ -159,6 +161,7 @@ err_unlink:
 err_uninit:
 	ubr_vec_clear(&ubr->busy, pidx);
 	__ubr_port_cleanup(&p->rcu);
+
 	return err;
 }
 
@@ -173,6 +176,7 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 	dev_set_promiscuity(dev, -1);
 	netdev_upper_dev_unlink(dev, ubr->dev);
 	ubr_port_cleanup(p);
+
 	return 0;
 }
 

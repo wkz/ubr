@@ -50,14 +50,15 @@ struct ubr_cb {
 	/* Ingress port index */
 	u32 pidx:UBR_MAX_PORTS_SHIFT;
 
-	/* Ingress filter results. Setting these in a port's
-	 * ingress_cb will _disable_ the corresponding filter,
-	 * i.e. the result is always treated as ok for all packets
-	 * ingressing on that port. */
+	/*
+	 * Ingress filter results.  Setting these in a port's ingress_cb
+	 * _disables_ the corresponding filter, i.e. the result is
+	 * always treated as OK for all packets ingressing on that port.
+	 */
 	u32 vlan_ok:1;
 	u32 stp_ok:1;
 	u32 sa_ok:1;
-	
+
 	u32 sa_learning:1;
 
 	struct ubr_vlan *vlan;
@@ -186,12 +187,12 @@ struct ubr {
 
 	struct ubr_vec active;
 	u16 vlan_proto;
-	
+
 	DECLARE_HASHTABLE(vlans, 8);
 	DECLARE_HASHTABLE(stps, 8);
 
 	struct ubr_fdb fdb;
-	
+
 	struct ubr_vec  busy;
 	struct ubr_port ports[UBR_MAX_PORTS];
 };

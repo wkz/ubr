@@ -6,7 +6,7 @@
 static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int pidx)
 {
 	struct ethhdr *eth = eth_hdr(skb);
-	
+
 	skb->dev = ubr->ports[pidx].dev;
 
 	if (pidx) {
@@ -76,9 +76,10 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 	ubr_vec_and(&cb->vec, &cb->vlan->members);
 
 	ubr_fdb_forward(&ubr->fdb, skb);
-
 	ubr_deliver(ubr, skb);
+
 	return;
+
 drop:
 	kfree(skb);
 /* consumed: */

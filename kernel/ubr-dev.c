@@ -29,6 +29,7 @@ netdev_tx_t ubr_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy(cb, &ubr->ports[0].ingress_cb, sizeof(*cb));
 	ubr_forward(ubr, skb);
+
 	return NETDEV_TX_OK;
 }
 
@@ -224,7 +225,7 @@ static int __init ubr_module_init(void)
 	err = ubr_fdb_cache_init();
 	if (err)
 		goto err;
-	
+
 	err = register_netdevice_notifier(&ubr_device_notifier);
 	if (err)
 		goto err_cache_fini;

@@ -51,6 +51,7 @@ static struct ubr_stp *ubr_stp_new(struct ubr *ubr, u16 sid)
 	stp->sid = sid;
 
 	hash_add(ubr->stps, &stp->node, stp->sid);
+
 	return sid;
 
 err_free_forwarding:
@@ -73,13 +74,13 @@ struct ubr_stp *ubr_stp_get(struct ubr *ubr, int sid)
 		return stp;
 
 	refcount_inc(&stp->refcount);
+
 	return stp;
 }
-
-
 
 int ubr_stp_init(struct ubr *ubr)
 {
 	hash_init(ubr->stps);
+
 	return 0;
 }
