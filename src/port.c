@@ -32,9 +32,51 @@
 static char *ifname;
 static int ifindex;
 
+
+static void cmd_port_set_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s port IFNAME set %s\n", cmdl->argv[0], PORT_OPTS);
+}
+
+static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
+			struct cmdl *cmdl, void *data)
+{
+	struct nlattr *attrs;
+	struct opt opts[] = {
+		{ "pvid",	OPT_KEYVAL,	NULL },
+		{ NULL }
+	};
+	struct opt *opt;
+	int val;
+
+	if (parse_opts(opts, cmdl) < 0 || !ifname) {
+		if (help_flag)
+			(cmd->help)(cmdl);
+		return -EINVAL;
+	}
+
+	nlh = msg_init(UBR_NL_PORT_SET);
+	if (!nlh) {
+		fprintf(stderr, "error, message initialisation failed\n");
+		return -1;
+	}
+
+	attrs = mnl_attr_nest_start(nlh, UBR_NLA_PORT);
+	mnl_attr_put_u32(nlh, UBR_NLA_PORT_IFINDEX, ifindex);
+
+	opt = get_opt(opts, "pvid");
+	if (opt && -1 != (val = atoi(opt->val)))
+		mnl_attr_put_u16(nlh, UBR_NLA_PORT_PVID, (uint16_t)val);
+
+	mnl_attr_nest_end(nlh, attrs);
+
+	return msg_doit(nlh, NULL, NULL);
+}
+
 static void cmd_port_attach_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s port IFNAME attach\n", cmdl->argv[0]);
+	fprintf(stderr, "Usage: %s port IFNAME attach %s\n",
+		cmdl->argv[0], PORT_OPTS);
 }
 
 static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -42,6 +84,7 @@ static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 {
 	struct ifinfomsg *ifm;
 	struct nlattr *linkinfo;
+	int err;
 
 	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
@@ -54,7 +97,14 @@ static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	mnl_attr_put_u32(nlh, IFLA_MASTER, brindex);
 
-	return msg_query2(nlh, NULL, NULL);
+	err = msg_query2(nlh, NULL, NULL);
+	if (err)
+		return err;
+
+	if (more_opts(cmdl))
+		return cmd_port_set(nlh, cmd, cmdl, data);
+
+	return 0;
 }
 
 static void cmd_port_detach_help(struct cmdl *cmdl)
@@ -80,46 +130,6 @@ static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	mnl_attr_put_u32(nlh, IFLA_MASTER, 0);
 
 	return msg_query2(nlh, NULL, NULL);
-}
-
-static void cmd_port_set_help(struct cmdl *cmdl)
-{
-	fprintf(stderr, "Usage: %s port IFNAME set %s\n", cmdl->argv[0], PORT_OPTS);
-}
-
-static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
-			struct cmdl *cmdl, void *data)
-{
-	struct nlattr *attrs;
-	struct opt opts[] = {
-		{ "pvid",	OPT_KEYVAL,	NULL },
-		{ NULL }
-	};
-	struct opt *opt;
-	int val;
-
-	if (parse_opts(opts, cmdl) < 0) {
-		if (help_flag)
-			(cmd->help)(cmdl);
-		return -EINVAL;
-	}
-
-	nlh = msg_init(UBR_NL_PORT_SET);
-	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
-		return -1;
-	}
-
-	attrs = mnl_attr_nest_start(nlh, UBR_NLA_PORT);
-	mnl_attr_put_u32(nlh, UBR_NLA_PORT_IFINDEX, ifindex);
-
-	opt = get_opt(opts, "pvid");
-	if (opt && -1 != (val = atoi(opt->val)))
-		mnl_attr_put_u16(nlh, UBR_NLA_PORT_PVID, (uint16_t)val);
-
-	mnl_attr_nest_end(nlh, attrs);
-
-	return msg_doit(nlh, NULL, NULL);
 }
 
 void cmd_port_help(struct cmdl *cmdl)
