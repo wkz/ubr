@@ -30,7 +30,7 @@
 #define VLAN_OPTS "[learning on|off] "
 
 
-static uint16_t vid = -1;
+static uint16_t vid = 0;
 
 
 static void cmd_vlan_add_help(struct cmdl *cmdl)
@@ -246,6 +246,7 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		{ NULL }
 	};
 	char *arg;
+	int val;
 
 	/* Read VLAN id, required argument */
 	arg = shift_cmdl(cmdl);
@@ -254,7 +255,11 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		return -EINVAL;
 	}
 
-	vid = atoi(arg);
+	val = atoi(arg);
+	if (val < 0 || val > UINT16_MAX)
+		val = 0;
+
+	vid = (uint16_t)val;
 	if (vid < 1 || vid > 4095) {
 		fprintf(stderr, "error, invalid VLAN %s\n", arg);
 		return -EINVAL;
