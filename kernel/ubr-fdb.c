@@ -240,6 +240,7 @@ int ubr_fdb_nl_flush_cmd(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ubr_netlink_dev(info);
 	printk(KERN_NOTICE "Flush FDB on %s, hello\n", dev->name);
+	dev_put(dev);
 
 	return 0;
 }

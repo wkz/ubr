@@ -216,6 +216,8 @@ int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 	printk(KERN_NOTICE "Add VLAN %u to %s, hello\n", vid, dev->name);
 
 	ubr = netdev_priv(dev);
+	dev_put(dev);
+
 	vlan = ubr_vlan_new(ubr, vid, 0, 0);
 	if (IS_ERR(vlan))
 		return PTR_ERR(vlan);
@@ -243,6 +245,7 @@ int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 	printk(KERN_NOTICE "Del VLAN %u from %s, hello\n", vid, dev->name);
 
 	ubr = netdev_priv(dev);
+	dev_put(dev);
 	vlan = ubr_vlan_find(ubr, vid);
 	if (!vlan)
 		return -ENOENT;
@@ -268,6 +271,7 @@ int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ubr_netlink_dev(info);
 	printk(KERN_NOTICE "Set VLAN %u%s on %s, hello\n", vid, flags, dev->name);
+	dev_put(dev);
 
 	return 0;
 }

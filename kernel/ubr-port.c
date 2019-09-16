@@ -238,6 +238,7 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ubr_netlink_dev(info);
 	printk(KERN_NOTICE "Set port %s on %s pvid %u, hello\n", port->name, dev->name, vid);
+	dev_put(dev);
 
 	return 0;
 }
