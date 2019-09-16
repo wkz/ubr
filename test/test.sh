@@ -63,13 +63,13 @@ inject() {
 
     printf "%4u: %-3s ->  %-20s (%s)\n" $seqno "$iif" "$oifs" "$desc"
 
-    printf "\\x$(printf $da | sed -e 's/:/\\x/g')\\x$(printf $sa | sed -e 's/:/\\x/g')\x00\x40%-20s" $seqno | socat stdin interface:ubr-test-$iif
+    printf "\\x$(printf $da | sed -e 's/:/\\x/g')\\x$(printf $sa | sed -e 's/:/\\x/g')\x88\xcc\x0a\x14%-20s\x00\x00" $seqno | socat stdin interface:ubr-test-$iif
 
     seqno=$(($seqno + 1))
 }
 
 verify() {
-    tcpdump -r p$1.pcapng -nnA 2>/dev/null  | grep -v length | awk '{ print($1); }' >p$1.observed
+    tcpdump -nr p$1.pcapng 2>/dev/null  | awk '{ print($NF); }' >p$1.observed
 
     if ! diff -u p$1.expected p$1.observed; then
 	echo p$1 sequence FAIL
