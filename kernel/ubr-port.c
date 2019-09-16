@@ -180,6 +180,24 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 	return 0;
 }
 
+int ubr_port_find(struct ubr *ubr, struct net_device *dev)
+{
+	unsigned pidx;
+
+	if (!ubr || !dev)
+		return -EINVAL;
+
+	ubr_vec_foreach(&ubr->busy, pidx) {
+		if (!pidx)
+			continue;
+
+		if (ubr->ports[pidx].dev == dev)
+			return pidx;
+	}
+
+	return -ENOENT;
+}
+
 static int __get_port(struct genl_info *info, struct nlattr **attrs,
 		      u32 *port)
 {
