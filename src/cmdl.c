@@ -114,8 +114,8 @@ int parse_opts(struct opt *opts, struct cmdl *cmdl)
 int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 	    const struct cmd *cmds, struct cmdl *cmdl, void *data)
 {
-	char *name;
 	const struct cmd *cmd;
+	char *name;
 
 	if ((cmdl->optind) >= cmdl->argc) {
 		if (caller->help) {
