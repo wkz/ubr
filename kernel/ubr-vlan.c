@@ -196,6 +196,64 @@ static int __get_learning(struct genl_info *info, struct nlattr **attrs,
 	return 0;
 }
 
+static int __get_bridge_vlan_port(struct genl_info *info,
+				  struct nlattr **attrs,
+				  struct ubr **ubr,
+				  struct ubr_vlan **vlan,
+				  u16 *vid,
+				  struct net_device **port,
+				  u32 *ifindex,
+				  u32 *tagged)
+{
+	struct net_device *dev = ubr_netlink_dev(info);
+	u16 tmp1;
+	u32 tmp2;
+	int err;
+
+	if (!vid)
+		vid = &tmp1;
+	if (!ifindex)
+		ifindex = &tmp2;
+
+	if (!dev)
+		return -EINVAL;
+
+	err = __get_vid(info, attrs, vid);
+	if (err)
+		goto err;
+
+	err = __get_port(info, attrs, ifindex, tagged);
+	if (err)
+		goto err;
+
+	*port = dev_get_by_index(genl_info_net(info), *ifindex);
+	if (!*port) {
+		err = -EINVAL;
+		goto err;
+	}
+
+	*ubr = netdev_priv(dev);
+	if (!ubr) {
+		err = -EINVAL;
+		goto err2;
+	}
+
+	*vlan = ubr_vlan_find(*ubr, *vid);
+	if (!ubr) {
+		err = -ENOENT;
+		goto err2;
+	}
+
+	dev_put(dev);
+	return 0;
+
+err2:
+	dev_put(*port);
+err:
+	dev_put(dev);
+	return err;
+}
+
 int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
@@ -279,53 +337,62 @@ int ubr_vlan_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
-	struct net_device *dev, *port;
+	struct net_device *port;
+	struct ubr_vlan *vlan;
+	struct ubr *ubr;
 	u32 ifindex, tagged = 0;
 	u16 vid;
-	int err;
+	int err, pidx;
 
-	err = __get_vid(info, attrs, &vid);
+	err = __get_bridge_vlan_port(info, attrs, &ubr, &vlan, &vid,
+				     &port, &ifindex, &tagged);
 	if (err)
 		return err;
 
-	err = __get_port(info, attrs, &ifindex, &tagged);
-	if (err)
-		return err;
+	pidx = ubr_port_find(ubr, port);
+	if (-1 == pidx) {
+		printk(KERN_NOTICE "Port %s not yet a bridge port, adding ...", port->name);
+		err = ubr_port_add(ubr, port, info->extack);
+		if (err)
+			goto err;
 
-	dev = ubr_netlink_dev(info);
-	port = dev_get_by_index(genl_info_net(info), ifindex);
-	if (!dev || !port)
-		return -EINVAL;
+		pidx = ubr_port_find(ubr, port);
+	}
 
-	printk(KERN_NOTICE "Attach to VLAN %u, bridge %s, port %s ifindex %d %stagged\n",
-	       vid, dev->name, port->name, ifindex, tagged ? "" : "not ");
+	printk(KERN_NOTICE "Attach pidx %d to VLAN %u, bridge %s, port %s ifindex %d %stagged\n",
+	       pidx, vid, ubr->dev->name, port->name, ifindex, tagged ? "" : "not ");
+	dev_put(port);
 
-	return 0;
+	return ubr_vlan_port_add(vlan, pidx, tagged);
+err:
+	dev_put(port);
+	return err;
 }
 
 int ubr_vlan_nl_detach_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
-	struct net_device *dev, *port;
+	struct net_device *port;
+	struct ubr_vlan *vlan;
+	struct ubr *ubr;
 	u32 ifindex;
-	u16 vid;
-	int err;
+	int err, pidx;
 
-	err = __get_vid(info, attrs, &vid);
+	err = __get_bridge_vlan_port(info, attrs, &ubr, &vlan, NULL,
+				     &port, &ifindex, NULL);
 	if (err)
 		return err;
 
-	err = __get_port(info, attrs, &ifindex, NULL);
-	if (err)
-		return err;
+	pidx = ubr_port_find(ubr, port);
+	if (pidx < 0)
+		goto err;
 
-	dev = ubr_netlink_dev(info);
-	port = dev_get_by_index(genl_info_net(info), ifindex);
-	if (!dev || !port)
-		return -EINVAL;
+	printk(KERN_NOTICE "Detach pidx %d from VLAN %u, bridge %s, port %s ifindex %d\n",
+	       pidx, vlan->vid, ubr->dev->name, port->name, ifindex);
+	dev_put(port);
 
-	printk(KERN_NOTICE "Detach to VLAN %u, bridge %s, port %s ifindex %d\n",
-	       vid, dev->name, port->name, ifindex);
-
-	return 0;
+	return ubr_vlan_port_del(vlan, pidx);
+err:
+	dev_put(port);
+	return err;
 }
