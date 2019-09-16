@@ -40,8 +40,8 @@ root:
 $(KDIR)/linux: $(KDIR)/.config
 	$(MAKE) -C $(KDIR) ARCH=um 
 
-$(KDIR)/.config: | $(KDIR)
-	$(MAKE) -C $(KDIR) ARCH=um x86_64_defconfig
+$(KDIR)/.config: linux.config | $(KDIR)
+	cp $< $@
 
 $(KDIR): $(KARCHIVE)
 	tar -xaf $<
