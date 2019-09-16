@@ -86,6 +86,12 @@ static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	struct nlattr *linkinfo;
 	int err;
 
+	if (!ifname) {
+		if (help_flag)
+			cmd->help(cmdl);
+		return -EINVAL;
+	}
+
 	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
 	ifm->ifi_family = AF_UNSPEC;
@@ -117,6 +123,12 @@ static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 {
 	struct ifinfomsg *ifm;
 	struct nlattr *linkinfo;
+
+	if (!ifname) {
+		if (help_flag)
+			cmd->help(cmdl);
+		return -EINVAL;
+	}
 
 	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
@@ -154,6 +166,9 @@ int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		{ NULL }
 	};
 
+	if (help_flag)
+		goto cont;
+
 	/* Read port name, required argument */
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
@@ -167,5 +182,6 @@ int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		return -EINVAL;
 	}
 
+cont:
 	return run_cmd(nlh, cmd, cmds, cmdl, NULL);
 }

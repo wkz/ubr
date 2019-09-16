@@ -45,6 +45,12 @@ static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 	struct nlattr *attrs;
 	int err;
 
+	if (!vid) {
+		if (help_flag)
+			cmd->help(cmdl);
+		return -EINVAL;
+	}
+
 	nlh = msg_init(UBR_NL_VLAN_ADD);
 	if (!nlh) {
 		fprintf(stderr, "error, message initialisation failed\n");
@@ -68,6 +74,12 @@ static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 {
 	struct nlattr *attrs;
 	int err;
+
+	if (!vid) {
+		if (help_flag)
+			cmd->help(cmdl);
+		return -EINVAL;
+	}
 
 	nlh = msg_init(UBR_NL_VLAN_DEL);
 	if (!nlh) {
@@ -102,10 +114,17 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	int tagged = 0;
 	int err;
 
+	if (!vid) {
+	err:
+		if (help_flag)
+			(cmd->help)(cmdl);
+		return -EINVAL;
+	}
+
 	/* Read port name(s), required argument */
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
-		cmd_vlan_attach_help(cmdl);
+		cmd->help(cmdl);
 		return -EINVAL;
 	}
 
@@ -115,11 +134,8 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 		return -EINVAL;
 	}
 
-	if (parse_opts(opts, cmdl) < 0) {
-		if (help_flag)
-			(cmd->help)(cmdl);
-		return -EINVAL;
-	}
+	if (parse_opts(opts, cmdl) < 0)
+		goto err;
 
 	nlh = msg_init(UBR_NL_VLAN_ATTACH);
 	if (!nlh) {
@@ -153,10 +169,16 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	int ifindex;
 	int err;
 
+	if (!vid) {
+		if (help_flag)
+			cmd->help(cmdl);
+		return -EINVAL;
+	}
+
 	/* Read port name(s), required argument */
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
-		cmd_vlan_detach_help(cmdl);
+		cmd->help(cmdl);
 		return -EINVAL;
 	}
 
@@ -196,7 +218,7 @@ static int cmd_vlan_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 	struct opt *opt;
 	int val;
 
-	if (parse_opts(opts, cmdl) < 0) {
+	if (!vid || parse_opts(opts, cmdl) < 0) {
 		if (help_flag)
 			(cmd->help)(cmdl);
 		return -EINVAL;
@@ -248,6 +270,9 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 	char *arg;
 	int val;
 
+	if (help_flag)
+		goto cont;
+
 	/* Read VLAN id, required argument */
 	arg = shift_cmdl(cmdl);
 	if (!arg) {
@@ -265,5 +290,6 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 		return -EINVAL;
 	}
 
+cont:
 	return run_cmd(nlh, cmd, cmds, cmdl, NULL);
 }

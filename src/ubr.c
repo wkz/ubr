@@ -66,6 +66,11 @@ static int cmd_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 	struct ifinfomsg *ifm;
 	struct nlattr *linkinfo;
 
+	if (help_flag) {
+		cmd->help(cmdl);
+		return 0;
+	}
+
 	nlh = msg_init2(RTM_NEWLINK, NLM_F_REQUEST | NLM_F_ACK | NLM_F_CREATE | NLM_F_EXCL);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
 	ifm->ifi_family = AF_UNSPEC;
@@ -88,6 +93,11 @@ static int cmd_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 {
 	struct ifinfomsg *ifm;
 	struct nlattr *linkinfo;
+
+	if (help_flag) {
+		cmd->help(cmdl);
+		return 0;
+	}
 
 	nlh = msg_init2(RTM_DELLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
@@ -167,7 +177,8 @@ int main(int argc, char *argv[])
 	} while (i != -1);
 
 	brindex = if_nametoindex(bridge);
-	if (!brindex && optind < argc && strncmp(argv[optind], "add", 2))
+	if (!help_flag && !brindex && optind < argc && strncmp(argv[optind],
+							       "add", 2))
 		errx(1, "%s does not exist", bridge);
 
 	cmdl.optind = optind;
