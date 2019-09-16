@@ -36,8 +36,10 @@ static void __ubr_port_cleanup(struct rcu_head *head)
 void ubr_port_cleanup(struct ubr_port *p)
 {
 	struct ubr *ubr = ubr_from_port(p);
+	unsigned pidx = p->ingress_cb.pidx;
 
-	ubr_vec_clear(&ubr->busy, p->ingress_cb.pidx);
+	printk(KERN_NOTICE "Clearing pidx %d from bridge %s\n", pidx, ubr->dev->name);
+	ubr_vec_clear(&ubr->busy, pidx);
 	call_rcu(&p->rcu, __ubr_port_cleanup);
 }
 
