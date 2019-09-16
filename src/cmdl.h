@@ -42,6 +42,7 @@ struct opt {
 
 struct opt *get_opt(struct opt *opts, char *key);
 bool has_opt(struct opt *opts, char *key);
+bool more_opts(struct cmdl *cmdl);
 int parse_opts(struct opt *opts, struct cmdl *cmdl);
 char *shift_cmdl(struct cmdl *cmdl);
 

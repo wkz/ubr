@@ -67,6 +67,11 @@ bool has_opt(struct opt *opts, char *key)
 	return get_opt(opts, key) ? true : false;
 }
 
+bool more_opts(struct cmdl *cmdl)
+{
+	return cmdl->optind < cmdl->argc ? true : false;
+}
+
 char *shift_cmdl(struct cmdl *cmdl)
 {
 	int next;
