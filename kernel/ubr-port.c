@@ -112,6 +112,7 @@ int ubr_port_add(struct ubr *ubr, struct net_device *dev,
 	struct ubr_port *p;
 	int err, pidx;
 
+	printk(KERN_NOTICE "Adding port %s to bridge %s ...\n", dev->name, ubr->dev->name);
 	err = __ubr_port_add_allowed(dev, extack);
 	if (err)
 		return err;
@@ -165,6 +166,7 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev)
 {
 	struct ubr_port *p = ubr_port_get_rtnl(dev);
 
+	printk(KERN_NOTICE "Removing port %s to bridge %s ...\n", dev->name, ubr->dev->name);
 	dev->priv_flags &= ~IFF_UBR_PORT;
 	netdev_rx_handler_unregister(dev);
 	dev_set_allmulti(dev, -1);

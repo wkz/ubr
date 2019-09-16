@@ -16,8 +16,8 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <net/if.h>
-
 #include <linux/genetlink.h>
+#include <linux/rtnetlink.h>
 
 #include <libmnl/libmnl.h>
 #include <sys/socket.h>
@@ -30,6 +30,56 @@
 #define PORT_OPTS "[pvid none|VID]"
 
 static char *ifname;
+
+static void cmd_port_attach_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s port IFNAME attach\n", cmdl->argv[0]);
+}
+
+static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
+			   struct cmdl *cmdl, void *data)
+{
+	struct ifinfomsg *ifm;
+	struct nlattr *linkinfo;
+
+	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
+	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+	ifm->ifi_family = AF_UNSPEC;
+	ifm->ifi_index  = if_nametoindex(ifname);
+
+	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
+	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
+	mnl_attr_nest_end(nlh, linkinfo);
+
+	mnl_attr_put_u32(nlh, IFLA_MASTER, if_nametoindex(bridge));
+
+	return msg_query2(nlh, NULL, NULL);
+}
+
+static void cmd_port_detach_help(struct cmdl *cmdl)
+{
+	fprintf(stderr, "Usage: %s port IFNAME detach\n", cmdl->argv[0]);
+}
+
+static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
+			   struct cmdl *cmdl, void *data)
+{
+	struct ifinfomsg *ifm;
+	struct nlattr *linkinfo;
+
+	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
+	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
+	ifm->ifi_family = AF_UNSPEC;
+	ifm->ifi_index  = if_nametoindex(ifname);
+
+	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
+	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
+	mnl_attr_nest_end(nlh, linkinfo);
+
+	mnl_attr_put_u32(nlh, IFLA_MASTER, 0);
+
+	return msg_query2(nlh, NULL, NULL);
+}
 
 static void cmd_port_set_help(struct cmdl *cmdl)
 {
@@ -87,8 +137,8 @@ int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 	       void *data)
 {
 	const struct cmd cmds[] = {
-//		{ "attach",	cmd_port_attach,	cmd_port_attach_help },
-//		{ "detach",	cmd_port_detach,	cmd_port_detach_help },
+		{ "attach",	cmd_port_attach,	cmd_port_attach_help },
+		{ "detach",	cmd_port_detach,	cmd_port_detach_help },
 		{ "set",	cmd_port_set,		cmd_port_set_help },
 		{ NULL }
 	};
