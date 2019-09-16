@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
-#include <net/if.h>
 
 #include <linux/genetlink.h>
 #include <libmnl/libmnl.h>
@@ -201,7 +200,8 @@ struct nlmsghdr *msg_init(int cmd)
 	genl->cmd = cmd;
 	genl->version = 1;
 
-	mnl_attr_put_u32(nlh, UBR_NLA_IFINDEX, if_nametoindex(bridge));
+	if (brindex)
+		mnl_attr_put_u32(nlh, UBR_NLA_IFINDEX, brindex);
 
 	return nlh;
 }

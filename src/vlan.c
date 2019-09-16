@@ -98,6 +98,7 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	};
 	struct opt *opt;
 	char *ifname;
+	int ifindex;
 	int tagged = 0;
 	int err;
 
@@ -105,6 +106,12 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
 		cmd_vlan_attach_help(cmdl);
+		return -EINVAL;
+	}
+
+	ifindex = if_nametoindex(ifname);
+	if (!ifindex) {
+		warn("%s is not a valid interface", ifname);
 		return -EINVAL;
 	}
 
@@ -125,7 +132,7 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	tagged = has_opt(opts, "tagged");
 	printf("Adding port %s %stagged to bridge %s\n", ifname, tagged ? "" : "not ", bridge);
 	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_TAGGED, tagged);
-	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(ifname));
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, ifindex);
 	mnl_attr_nest_end(nlh, attrs);
 
 	return msg_doit(nlh, NULL, NULL);
@@ -143,12 +150,19 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 {
 	struct nlattr *attrs;
 	char *ifname;
+	int ifindex;
 	int err;
 
 	/* Read port name(s), required argument */
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
 		cmd_vlan_detach_help(cmdl);
+		return -EINVAL;
+	}
+
+	ifindex = if_nametoindex(ifname);
+	if (!ifindex) {
+		warn("%s is not a valid interface", ifname);
 		return -EINVAL;
 	}
 
@@ -160,7 +174,7 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
 	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
-	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, if_nametoindex(ifname));
+	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, ifindex);
 	mnl_attr_nest_end(nlh, attrs);
 
 	return msg_doit(nlh, NULL, NULL);

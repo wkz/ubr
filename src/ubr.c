@@ -16,6 +16,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <net/if.h>
 #include <linux/rtnetlink.h>
 
 #include "private.h"
@@ -25,6 +26,7 @@
 #include "vlan.h"
 
 char *bridge    = "ubr0";
+int   brindex   = 0;
 int   help_flag = 0;
 
 int atob(const char *str)
@@ -163,6 +165,10 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	} while (i != -1);
+
+	brindex = if_nametoindex(bridge);
+	if (!brindex && optind < argc && strncmp(argv[optind], "add", 2))
+		errx(1, "%s does not exist", bridge);
 
 	cmdl.optind = optind;
 	cmdl.argc = argc;

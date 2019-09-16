@@ -30,6 +30,7 @@
 #define PORT_OPTS "[pvid none|VID]"
 
 static char *ifname;
+static int ifindex;
 
 static void cmd_port_attach_help(struct cmdl *cmdl)
 {
@@ -45,13 +46,13 @@ static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
 	ifm->ifi_family = AF_UNSPEC;
-	ifm->ifi_index  = if_nametoindex(ifname);
+	ifm->ifi_index  = ifindex;
 
 	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
 	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
 	mnl_attr_nest_end(nlh, linkinfo);
 
-	mnl_attr_put_u32(nlh, IFLA_MASTER, if_nametoindex(bridge));
+	mnl_attr_put_u32(nlh, IFLA_MASTER, brindex);
 
 	return msg_query2(nlh, NULL, NULL);
 }
@@ -70,7 +71,7 @@ static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	nlh = msg_init2(RTM_SETLINK, NLM_F_REQUEST | NLM_F_ACK);
 	ifm = mnl_nlmsg_put_extra_header(nlh, sizeof(*ifm));
 	ifm->ifi_family = AF_UNSPEC;
-	ifm->ifi_index  = if_nametoindex(ifname);
+	ifm->ifi_index  = ifindex;
 
 	linkinfo = mnl_attr_nest_start(nlh, IFLA_LINKINFO);
 	mnl_attr_put_str(nlh, IFLA_INFO_KIND, "ubr");
@@ -110,7 +111,7 @@ static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 	}
 
 	attrs = mnl_attr_nest_start(nlh, UBR_NLA_PORT);
-	mnl_attr_put_u32(nlh, UBR_NLA_PORT_IFINDEX, if_nametoindex(ifname));
+	mnl_attr_put_u32(nlh, UBR_NLA_PORT_IFINDEX, ifindex);
 
 	opt = get_opt(opts, "pvid");
 	if (opt && -1 != (val = atoi(opt->val)))
@@ -147,6 +148,12 @@ int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 	ifname = shift_cmdl(cmdl);
 	if (!ifname) {
 		cmd_port_help(cmdl);
+		return -EINVAL;
+	}
+
+	ifindex = if_nametoindex(ifname);
+	if (!ifindex) {
+		warn("%s is not a valid interface", ifname);
 		return -EINVAL;
 	}
 
