@@ -5,19 +5,30 @@
 # CPPFLAGS=-I/path/to/headers
 # LDFLAGS=-L/path/to/libmnl.{a,so}
 
+EXEC     := ubr
 OBJS     := ubr.o cmdl.o msg.o fdb.o port.o vlan.o
 HDRS     :=       cmdl.h msg.h fdb.h port.h vlan.h private.h
 LDLIBS   += -lmnl
 CPPFLAGS += -I../kernel
 
-all: ubr
+PREFIX   ?= /usr/local
+SBINDIR  ?= $(PREFIX)/sbin
 
-ubr: $(OBJS)
+all: $(EXEC)
 
 clean:
-	$(RM) ubr $(OBJS)
+	$(RM) $(EXEC) $(OBJS)
 
 distclean: clean
 	$(RM) *.o *~
+
+install:
+	install -d $(DESTDIR)$(SBINDIR)
+	install $(EXEC) $(DESTDIR)$(SBINDIR)/$(EXEC)
+
+uninstall:
+	$(RM) $(DESTDIR)$(SBINDIR)/$(EXEC)
+
+$(EXEC): $(OBJS)
 
 $(OBJS): Makefile $(HDRS)
