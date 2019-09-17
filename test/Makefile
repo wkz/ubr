@@ -11,7 +11,7 @@ linux = $(KDIR)/linux mem=64M loglevel=0 quiet \
 
 
 
-uml-check: root/uml-test.sh root/test.sh root/sbin/ubr root/lib/ubr.ko
+uml-check: $(KDIR)/linux root/uml-test.sh root/test.sh root/sbin/ubr root/lib/ubr.ko
 	$(call linux,/uml-test.sh)
 
 shell: | root
@@ -38,7 +38,7 @@ root:
 	alp -C root init busybox iproute2 tcpdump socat
 
 $(KDIR)/linux: $(KDIR)/.config
-	$(MAKE) -C $(KDIR) ARCH=um 
+	$(MAKE) -C $(KDIR) ARCH=um
 
 $(KDIR)/.config: linux.config | $(KDIR)
 	cp $< $@
