@@ -24,11 +24,11 @@ root/test.sh: test.sh | root
 	cp $< $@
 
 root/sbin/ubr: | root
-	$(MAKE) -C ../src LDFLAGS=-static
+	$(MAKE) -C ../src LDFLAGS=-static clean all
 	cp ../src/ubr $@
 
 root/lib/ubr.ko: | root
-	$(MAKE) -C ../kernel KDIR=$(abspath $(KDIR)) ARCH=um
+	$(MAKE) -C ../kernel KDIR=$(abspath $(KDIR)) ARCH=um clean all
 	cp ../kernel/ubr.ko $@
 
 root/usr/src/ubr/src root/usr/src/ubr/kernel: | root
