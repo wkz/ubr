@@ -63,7 +63,10 @@ inject() {
 
     printf "%4u: %-3s ->  %-20s (%s)\n" $seqno "$iif" "$oifs" "$desc"
 
-    printf "\\x$(printf $da | sed -e 's/:/\\x/g')\\x$(printf $sa | sed -e 's/:/\\x/g')\x88\xcc\x0a\x14%-20s\x00\x00" $seqno | socat stdin interface:ubr-test-$iif
+    printf "\x$(printf $da | sed -e 's/:/\\x/g')" >  ${seqno}.pkt
+    printf "\x$(printf $sa | sed -e 's/:/\\x/g')" >> ${seqno}.pkt
+    printf "\x88\xcc\x0a\x14%-20s\x00\x00" $seqno >> ${seqno}.pkt
+    socat gopen:${seqno}.pkt interface:ubr-test-$iif
 
     seqno=$(($seqno + 1))
 }
