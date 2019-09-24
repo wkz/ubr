@@ -63,9 +63,14 @@ inject() {
 
     printf "%4u: %-3s ->  %-20s (%s)\n" $seqno "$iif" "$oifs" "$desc"
 
+    # Simple LLDP (88cc) frame which is easy to parse with tcpdump
     printf "\x$(printf $da | sed -e 's/:/\\x/g')" >  ${seqno}.pkt
     printf "\x$(printf $sa | sed -e 's/:/\\x/g')" >> ${seqno}.pkt
-    printf "\x88\xcc\x0a\x14%-20s\x00\x00" $seqno >> ${seqno}.pkt
+    printf "\x88\xcc"                             >> ${seqno}.pkt
+    # LLDP System name TLV payload, with two zero bytes as end marker
+    printf "\x0a\x14%-20s\x00\x00" $seqno         >> ${seqno}.pkt
+
+    # Send frame, on error this pkt file can be re-used to debug
     socat gopen:${seqno}.pkt interface:ubr-test-$iif
 
     seqno=$(($seqno + 1))
