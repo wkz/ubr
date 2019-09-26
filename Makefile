@@ -7,6 +7,9 @@ DIRS := kernel src
 
 all: $(DIRS)
 
+check:
+	$(MAKE) -C test $@
+
 .PHONY: $(DIRS)
 $(DIRS):
 	$(MAKE) -C $@

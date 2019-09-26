@@ -9,7 +9,9 @@ linux = $(KDIR)/linux mem=64M loglevel=0 quiet \
 		root=/dev/root rootfstype=hostfs rootflags=$(abspath root) rw \
 		init=$1
 
+all: check
 
+check: uml-check
 
 uml-check: $(KDIR)/linux root/uml-test.sh root/test.sh root/sbin/ubr root/lib/ubr.ko
 	$(call linux,/uml-test.sh)
