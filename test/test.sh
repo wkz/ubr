@@ -2,9 +2,14 @@
 
 UBR_TEST_N_PORTS=${UBR_TEST_N_PORTS:-4}
 
-alias all="seq 0 $UBR_TEST_N_PORTS"
+alias untagged="sed 's/$/-u/g'"
+alias tagged="sed 's/$/-t/g'"
 
-exclude() {
+all() {
+    seq 0 $UBR_TEST_N_PORTS
+}
+
+all_except() {
     all | grep -ve "^${1}\$"
 }
 
@@ -30,7 +35,7 @@ setup() {
     tcpdump -qni ubr-test-p0 -Q in -w p0.pcapng 2>/dev/null &
     tcpdumps="$tcpdumps $!"
 
-    for i in $(exclude 0); do
+    for i in $(all_except 0); do
 	truncate -s 0 p$i.pcapng p$i.expected p$i.observed
 	ip link add dev ubr-test-p$i type veth peer name ubr-test-b$i
 	ip link set dev ubr-test-b$i master ubr-test-p0
@@ -43,32 +48,51 @@ setup() {
 
 seqno=0
 
+parse_expect() {
+    local vid=$1
+    shift
+
+    while [ "$#" -gt 0 ]; do
+	local port=${1%-*}
+	local tag=${1#*-}
+
+	printf "seqno:${seqno}" >>p$port.expected
+
+	if [ "$tag" = "t" ]; then
+	    printf " vlan:${vid}" >>p$port.expected
+	fi
+
+	echo >>p$port.expected
+    	shift
+    done
+
+}
+
 inject() {
     local desc="$1"
     local iif=p$2
     local da=$3
     local sa=$4
-    local tag=$5
+    local vid=${5%-*}
+    local tag=${5#*-}
     shift 5
 
-    local oifs=p$1
-    echo $seqno >>p$1.expected
-    shift
+    parse_expect $vid $@
 
-    while [ "$#" -gt 0 ]; do
-    	oifs=$oifs,p$1
-	echo $seqno >>p$1.expected
-    	shift
-    done
-
-    printf "%4u: %-3s ->  %-20s (%s)\n" $seqno "$iif" "$oifs" "$desc"
+    printf "%4u: ->%-3s: %s\n" $seqno "$iif" "$desc"
 
     # Simple LLDP (88cc) frame which is easy to parse with tcpdump
-    printf "\x$(printf $da | sed -e 's/:/\\x/g')" >  ${seqno}.pkt
-    printf "\x$(printf $sa | sed -e 's/:/\\x/g')" >> ${seqno}.pkt
-    printf "\x88\xcc"                             >> ${seqno}.pkt
+    printf "\x$(printf $da | sed -e 's/:/\\x/g')"  >  ${seqno}.pkt
+    printf "\x$(printf $sa | sed -e 's/:/\\x/g')"  >> ${seqno}.pkt
+    if [ "${tag}" = "t" ]; then
+	printf "\x81\x00" >> ${seqno}.pkt
+	printf "\x$(printf %02x $(($vid >> 8)))"   >> ${seqno}.pkt
+	printf "\x$(printf %02x $(($vid & 0xff)))" >> ${seqno}.pkt
+    fi
+
+    printf "\x88\xcc"                              >> ${seqno}.pkt
     # LLDP System name TLV payload, with two zero bytes as end marker
-    printf "\x0a\x14%-20s\x00\x00" $seqno         >> ${seqno}.pkt
+    printf "\x0a\x14%-20s\x00\x00" $seqno          >> ${seqno}.pkt
 
     # Send frame, on error this pkt file can be re-used to debug
     socat gopen:${seqno}.pkt interface:ubr-test-$iif
@@ -77,7 +101,17 @@ inject() {
 }
 
 verify() {
-    tcpdump -nr p$1.pcapng 2>/dev/null  | awk '{ print($NF); }' >p$1.observed
+    tcpdump -enr p$1.pcapng 2>/dev/null  | awk '{
+    	for (i = 1; i <= NF; i++) {
+	    if ($i == "vlan") {
+	    	i++;
+		printf("seqno:%s vlan:%u\n", $NF, $i);
+		next;
+	    }
+	}
+	
+	printf("seqno:%s\n", $NF)
+    }' >p$1.observed
 
     if ! diff -u p$1.expected p$1.observed; then
 	echo p$1 sequence FAIL
@@ -107,48 +141,55 @@ sleep 1
 echo inject
 
 inject "broadcast: host" 0 \
-       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
-       $(exclude 0)
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" 0-u \
+       $(all_except 0 | untagged)
 inject "broadcast: port" 1 \
-       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" untagged \
-       $(exclude 1)
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" 0-u \
+       $(all_except 1 | untagged)
 
 inject "unknown uc: host" 0 \
-       "02:00:de:ad:00:01" "02:ed:00:00:00:01" untagged \
-       $(exclude 0)
+       "02:00:de:ad:00:01" "02:ed:00:00:00:01" 0-u \
+       $(all_except 0 | untagged)
 inject "unknown uc: port" 1 \
-       "02:00:de:ad:00:01" "02:ed:00:00:01:01" untagged \
-       $(exclude 1)
+       "02:00:de:ad:00:01" "02:ed:00:00:01:01" 0-u \
+       $(all_except 1 | untagged)
 
 inject "unknown mc: host" 0 \
-       "03:00:de:ad:00:01" "02:ed:00:00:00:01" untagged \
-       $(exclude 0)
+       "03:00:de:ad:00:01" "02:ed:00:00:00:01" 0-u \
+       $(all_except 0 | untagged)
 inject "unknown mc: port" 1 \
-       "03:00:de:ad:00:01" "02:ed:00:00:01:01" untagged \
-       $(exclude 1)
+       "03:00:de:ad:00:01" "02:ed:00:00:01:01" 0-u \
+       $(all_except 1 | untagged)
 
 inject "learning: host insert" 0 \
-       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
-       $(exclude 0)
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" 0-u \
+       $(all_except 0 | untagged)
 inject "learning: port reply/insert" 1 \
-       "02:ed:00:00:00:01" "02:ed:00:00:01:01" untagged \
-       0
+       "02:ed:00:00:00:01" "02:ed:00:00:01:01" 0-u \
+       0-u
 inject "learning: port reply" 0 \
-       "02:ed:00:00:01:01" "02:ed:00:00:00:01" untagged \
-       1
+       "02:ed:00:00:01:01" "02:ed:00:00:00:01" 0-u \
+       1-u
 
 inject "learning: host move" 0 \
-       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" untagged \
-       $(exclude 0)
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" 0-u \
+       $(all_except 0 | untagged)
 inject "learning: port move" 1 \
-       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" untagged \
-       $(exclude 1)
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" 0-u \
+       $(all_except 1 | untagged)
 inject "learning: host move ok" 2 \
-       "02:ed:00:00:01:01" "02:ed:00:00:02:01" untagged \
-       0
+       "02:ed:00:00:01:01" "02:ed:00:00:02:01" 0-u \
+       0-u
 inject "learning: port move ok" 2 \
-       "02:ed:00:00:00:01" "02:ed:00:00:02:01" untagged \
-       1
+       "02:ed:00:00:00:01" "02:ed:00:00:02:01" 0-u \
+       1-u
+
+inject "vlan transparency: host" 0 \
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:00:01" 1-t \
+       $(all_except 0 | tagged)
+inject "vlan transparency: port" 1 \
+       "ff:ff:ff:ff:ff:ff" "02:ed:00:00:01:01" 1-t \
+       $(all_except 1 | tagged)
 
 
 sleep 1
