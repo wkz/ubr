@@ -146,7 +146,6 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 	attrs = mnl_attr_nest_start(nlh, UBR_NLA_VLAN);
 	mnl_attr_put_u16(nlh, UBR_NLA_VLAN_VID, (uint16_t)vid);
 	tagged = has_opt(opts, "tagged");
-	printf("Adding port %s %stagged to bridge %s\n", ifname, tagged ? "" : "not ", bridge);
 	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_TAGGED, tagged);
 	mnl_attr_put_u32(nlh, UBR_NLA_VLAN_PORT, ifindex);
 	mnl_attr_nest_end(nlh, attrs);
