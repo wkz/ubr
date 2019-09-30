@@ -77,7 +77,7 @@ char *shift_cmdl(struct cmdl *cmdl)
 	int next;
 
 	if (cmdl->optind < cmdl->argc)
-		next = (cmdl->optind)++;
+		next = cmdl->optind++;
 	else
 		next = cmdl->argc;
 
@@ -119,7 +119,7 @@ int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 
 	if ((cmdl->optind) >= cmdl->argc) {
 		if (caller->help) {
-			(caller->help)(cmdl);
+			caller->help(cmdl);
 			return 0;
 		}
 
@@ -127,13 +127,13 @@ int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 	}
 
 	name = cmdl->argv[cmdl->optind];
-	(cmdl->optind)++;
+	cmdl->optind++;
 
 	cmd = find_cmd(cmds, name);
 	if (!cmd) {
 		/* Show help about last command if we don't find this one */
 		if (help_flag && caller->help) {
-			(caller->help)(cmdl);
+			caller->help(cmdl);
 		} else {
 			fprintf(stderr, "error, invalid command \"%s\"\n", name);
 			fprintf(stderr, "use --help for command help\n");
@@ -141,5 +141,5 @@ int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 		return -EINVAL;
 	}
 
-	return (cmd->func)(nlh, cmd, cmdl, data);
+	return cmd->func(nlh, cmd, cmdl, data);
 }
