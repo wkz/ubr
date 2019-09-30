@@ -57,7 +57,7 @@ int atob(const char *str)
 
 static void cmd_add_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s -i NAME add", cmdl->argv[0]);
+	printf("Usage: %s -i NAME add", cmdl->argv[0]);
 }
 
 static int cmd_add(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -85,7 +85,7 @@ static int cmd_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_del_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s -i NAME del", cmdl->argv[0]);
+	printf("Usage: %s -i NAME del", cmdl->argv[0]);
 }
 
 static int cmd_del(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -113,21 +113,20 @@ static int cmd_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void about(struct cmdl *cmdl)
 {
-	fprintf(stderr,
-		"Usage: %s [OPTIONS] COMMAND [ARGS] ...\n"
-		"\n"
-		"Options:\n"
-		" -i, --iface BRIDGE  Bridge interface to manage, default ubr0\n"
-		" -h, --help          Show help for last given command\n"
-		" -j, --json          Read JSON from STDIN, or write to STDOUT\n"
-		"\n"
-		"Commands:\n"
-		" add                 Create a new bridge\n"
-		" del                 Delete a bridge\n"
-		" fdb                 Manage forwarding (MAC) database\n"
-		" port PORT           Manage bridge ports\n"
-		" vlan VID            Manage bridge VLANs\n",
-		cmdl->argv[0]);
+	printf("Usage: %s [OPTIONS] COMMAND [ARGS] ...\n"
+	       "\n"
+	       "Options:\n"
+	       " -i, --iface BRIDGE  Bridge interface to manage, default ubr0\n"
+	       " -h, --help          Show help for last given command\n"
+	       " -j, --json          Read JSON from STDIN, or write to STDOUT\n"
+	       "\n"
+	       "Commands:\n"
+	       " add                 Create a new bridge\n"
+	       " del                 Delete a bridge\n"
+	       " fdb                 Manage forwarding (MAC) database\n"
+	       " port PORT           Manage bridge ports\n"
+	       " vlan VID            Manage bridge VLANs\n",
+	       cmdl->argv[0]);
 }
 
 int main(int argc, char *argv[])

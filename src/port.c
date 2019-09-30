@@ -35,7 +35,7 @@ static int ifindex;
 
 static void cmd_port_set_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s port IFNAME set %s\n", cmdl->argv[0], PORT_OPTS);
+	printf("Usage: %s port IFNAME set %s\n", cmdl->argv[0], PORT_OPTS);
 }
 
 static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -75,8 +75,8 @@ static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_port_attach_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s port IFNAME attach %s\n",
-		cmdl->argv[0], PORT_OPTS);
+	printf("Usage: %s port IFNAME attach %s\n",
+	       cmdl->argv[0], PORT_OPTS);
 }
 
 static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -115,7 +115,7 @@ static int cmd_port_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_port_detach_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s port IFNAME detach\n", cmdl->argv[0]);
+	printf("Usage: %s port IFNAME detach\n", cmdl->argv[0]);
 }
 
 static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -146,14 +146,13 @@ static int cmd_port_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 void cmd_port_help(struct cmdl *cmdl)
 {
-	fprintf(stderr,
-		"Usage: %s port PORT-LIST COMMAND [OPTS] ...\n"
-		"\n"
-		"COMMANDS\n"
-		" attach      Attach port(s) to bridge\n"
-		" detach      Detach port(s) from bridge\n"
-		" set         Set various port properties\n",
-		cmdl->argv[0]);
+	printf("Usage: %s port PORT-LIST COMMAND [OPTS] ...\n"
+	       "\n"
+	       "COMMANDS\n"
+	       " attach      Attach port(s) to bridge\n"
+	       " detach      Detach port(s) from bridge\n"
+	       " set         Set various port properties\n",
+	       cmdl->argv[0]);
 }
 
 int cmd_port(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,

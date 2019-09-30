@@ -29,7 +29,7 @@
 
 static void cmd_fdb_flush_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s fdb flush\n", cmdl->argv[0]);
+	printf("Usage: %s fdb flush\n", cmdl->argv[0]);
 }
 
 static int cmd_fdb_flush(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -49,12 +49,11 @@ static int cmd_fdb_flush(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 void cmd_fdb_help(struct cmdl *cmdl)
 {
-	fprintf(stderr,
-		"Usage: %s fdb COMMAND [OPTS] ...\n"
-		"\n"
-		"COMMANDS\n"
-		" flush       Set flush forwarding database\n",
-		cmdl->argv[0]);
+	printf("Usage: %s fdb COMMAND [OPTS] ...\n"
+	       "\n"
+	       "COMMANDS\n"
+	       " flush       Set flush forwarding database\n",
+	       cmdl->argv[0]);
 }
 
 int cmd_fdb(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,

@@ -35,8 +35,8 @@ static uint16_t vid = 0;
 
 static void cmd_vlan_add_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID add [protocol VLAN-PROTO] "
-		"[set %s]\n", cmdl->argv[0], VLAN_OPTS);
+	printf("Usage: %s vlan VID add [protocol VLAN-PROTO] "
+	       "[set %s]\n", cmdl->argv[0], VLAN_OPTS);
 }
 
 static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -66,7 +66,7 @@ static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_vlan_del_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID del\n", cmdl->argv[0]);
+	printf("Usage: %s vlan VID del\n", cmdl->argv[0]);
 }
 
 static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -96,8 +96,8 @@ static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_vlan_attach_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID attach PORT-LIST [tagged]",
-		cmdl->argv[0]);
+	printf("Usage: %s vlan VID attach PORT-LIST [tagged]\n",
+	       cmdl->argv[0]);
 }
 
 static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -157,8 +157,8 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_vlan_detach_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID detach PORT-LIST [tagged]",
-		cmdl->argv[0]);
+	printf("Usage: %s vlan VID detach PORT-LIST [tagged]",
+	       cmdl->argv[0]);
 }
 
 static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -204,7 +204,7 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 static void cmd_vlan_set_help(struct cmdl *cmdl)
 {
-	fprintf(stderr, "Usage: %s vlan VID set %s\n", cmdl->argv[0], VLAN_OPTS);
+	printf("Usage: %s vlan VID set %s\n", cmdl->argv[0], VLAN_OPTS);
 }
 
 static int cmd_vlan_set(struct nlmsghdr *nlh, const struct cmd *cmd,
@@ -244,16 +244,15 @@ static int cmd_vlan_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 void cmd_vlan_help(struct cmdl *cmdl)
 {
-	fprintf(stderr,
-		"Usage: %s vlan VID COMMAND [OPTS] ...\n"
-		"\n"
-		"COMMANDS\n"
-		" add         Add VLAN to bridge\n"
-		" del         Remove VLAN from bridge\n"
-		" attach      Attach port(s) to VLAN\n"
-		" detach      Detach port(s) from VLAN\n"
-		" set         Set various VLAN properties\n",
-		cmdl->argv[0]);
+	printf("Usage: %s vlan VID COMMAND [OPTS] ...\n"
+	       "\n"
+	       "COMMANDS\n"
+	       " add         Add VLAN to bridge\n"
+	       " del         Remove VLAN from bridge\n"
+	       " attach      Attach port(s) to VLAN\n"
+	       " detach      Detach port(s) from VLAN\n"
+	       " set         Set various VLAN properties\n",
+	       cmdl->argv[0]);
 }
 
 int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
