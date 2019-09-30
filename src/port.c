@@ -57,7 +57,7 @@ static int cmd_port_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_PORT_SET);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 

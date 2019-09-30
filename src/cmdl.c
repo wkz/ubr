@@ -9,6 +9,7 @@
  * Authors:	Richard Alpe <richard.alpe@ericsson.com>
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -95,8 +96,7 @@ int parse_opts(struct opt *opts, struct cmdl *cmdl)
 
 		o = find_opt(opts, cmdl->argv[i]);
 		if (!o) {
-			fprintf(stderr, "error, invalid option \"%s\"\n",
-					cmdl->argv[i]);
+			warnx("error, invalid option \"%s\"\n", cmdl->argv[i]);
 			return -EINVAL;
 		}
 		if (o->flag & OPT_KEYVAL) {
@@ -132,12 +132,12 @@ int run_cmd(struct nlmsghdr *nlh, const struct cmd *caller,
 	cmd = find_cmd(cmds, name);
 	if (!cmd) {
 		/* Show help about last command if we don't find this one */
-		if (help_flag && caller->help) {
+		if (help_flag && caller->help)
 			caller->help(cmdl);
-		} else {
-			fprintf(stderr, "error, invalid command \"%s\"\n", name);
-			fprintf(stderr, "use --help for command help\n");
-		}
+		else
+			warnx("error, invalid command \"%s\"\n"
+			      "use --help for command help\n", name);
+
 		return -EINVAL;
 	}
 

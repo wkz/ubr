@@ -53,7 +53,7 @@ static int cmd_vlan_add(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_VLAN_ADD);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
@@ -83,7 +83,7 @@ static int cmd_vlan_del(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_VLAN_DEL);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
@@ -139,7 +139,7 @@ static int cmd_vlan_attach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_VLAN_ATTACH);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
@@ -190,7 +190,7 @@ static int cmd_vlan_detach(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_VLAN_DETACH);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
@@ -226,7 +226,7 @@ static int cmd_vlan_set(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_VLAN_SET);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
@@ -286,7 +286,7 @@ int cmd_vlan(struct nlmsghdr *nlh, const struct cmd *cmd, struct cmdl *cmdl,
 
 	vid = (uint16_t)val;
 	if (vid < 1 || vid > 4095) {
-		fprintf(stderr, "error, invalid VLAN %s\n", arg);
+		warnx("error, invalid VLAN %s\n", arg);
 		return -EINVAL;
 	}
 

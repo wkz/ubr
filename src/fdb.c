@@ -40,7 +40,7 @@ static int cmd_fdb_flush(struct nlmsghdr *nlh, const struct cmd *cmd,
 
 	nlh = msg_init(UBR_NL_FDB_FLUSH);
 	if (!nlh) {
-		fprintf(stderr, "error, message initialisation failed\n");
+		warnx("error, message initialisation failed\n");
 		return -1;
 	}
 
