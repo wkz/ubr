@@ -131,15 +131,6 @@ static void about(struct cmdl *cmdl)
 
 int main(int argc, char *argv[])
 {
-	int i;
-	int res;
-	struct cmdl cmdl;
-	const struct cmd cmd = {"ubr", NULL, about};
-	struct option long_options[] = {
-		{ "help",  no_argument,       0, 'h' },
-		{ "iface", required_argument, 0, 'i' },
-		{ 0, 0, 0, 0 }
-	};
 	const struct cmd cmds[] = {
 		{ "add",        cmd_add,        cmd_add_help  },
 		{ "del",        cmd_del,        cmd_del_help  },
@@ -148,6 +139,14 @@ int main(int argc, char *argv[])
 		{ "vlan",       cmd_vlan,       cmd_vlan_help },
 		{ NULL }
 	};
+	const struct cmd cmd = {"ubr", NULL, about};
+	struct option long_options[] = {
+		{ "help",  no_argument,       0, 'h' },
+		{ "iface", required_argument, 0, 'i' },
+		{ 0, 0, 0, 0 }
+	};
+	struct cmdl cmdl;
+	int res, i;
 
 	do {
 		int option_index = 0;
@@ -176,8 +175,8 @@ int main(int argc, char *argv[])
 	} while (i != -1);
 
 	brindex = if_nametoindex(bridge);
-	if (!help_flag && !brindex && optind < argc && strncmp(argv[optind],
-							       "add", 2))
+	if (!help_flag && !brindex && optind < argc &&
+	    strncmp(argv[optind], "add", 2))
 		errx(1, "%s does not exist", bridge);
 
 	cmdl.optind = optind;
