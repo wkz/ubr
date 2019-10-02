@@ -350,13 +350,9 @@ int ubr_vlan_nl_attach_cmd(struct sk_buff *skb, struct genl_info *info)
 		return err;
 
 	pidx = ubr_port_find(ubr, port);
-	if (-1 == pidx) {
-		printk(KERN_NOTICE "Port %s not yet a bridge port, adding ...", port->name);
-		err = ubr_port_add(ubr, port, info->extack);
-		if (err)
-			goto err;
-
-		pidx = ubr_port_find(ubr, port);
+	if (pidx < 0) {
+		err = -ENODEV;
+		goto err;
 	}
 
 	printk(KERN_NOTICE "Attach pidx %d to VLAN %u, bridge %s, port %s ifindex %d %stagged\n",
