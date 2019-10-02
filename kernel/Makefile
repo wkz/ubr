@@ -4,3 +4,7 @@ all: modules
 
 clean help modules modules_install:
 	$(MAKE) -C $(KDIR) M=$$PWD $@
+
+distclean: clean
+	$(RM) *.o *.ko *~
+
