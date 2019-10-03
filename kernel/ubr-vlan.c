@@ -17,6 +17,12 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	bool tagged = false;
 	u16 vid = 0;
 
+	/*
+	 * This looks weird, but skb_vlan_tag_present() looks for any
+	 * already offloaded VLAN information, not for 0x8100 in the
+	 * payload after the source address.  So, if there is no VLAN
+	 * info extracted already from the frame we do that here.
+	 */
 	if (unlikely(!skb_vlan_tag_present(skb) &&
 		     skb->protocol == ubr->vlan_proto)) {
 		skb = skb_vlan_untag(skb);
@@ -24,6 +30,13 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 			return false;
 	}
 
+	/*
+	 * If we end up with VLAN information we handle that here.
+	 * First, the VLAN proto field may be something odd, e.g.
+	 * an S-tag instead of a C-tag, then we convert to C-tag.
+	 * Second, if the frame was a sane C-tag, extract the VID
+	 * for further processing below.
+	 */
 	if (unlikely(skb_vlan_tag_present(skb))) {
 		if (unlikely(skb->vlan_proto != ubr->vlan_proto)) {
 			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
