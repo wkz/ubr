@@ -227,7 +227,7 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr *attrs[UBR_NLA_PORT_MAX + 1];
 	struct net_device *dev, *port;
 	int ifindex;
-	u16 vid = 0;
+	u16 pvid = 0;
 	int err;
 
 	err = __get_port(info, attrs, &ifindex);
@@ -236,10 +236,10 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	port = dev_get_by_index(genl_info_net(info), ifindex);
 
 	if (attrs[UBR_NLA_PORT_PVID])
-		vid = nla_get_u16(attrs[UBR_NLA_PORT_PVID]);
+		pvid = nla_get_u16(attrs[UBR_NLA_PORT_PVID]);
 
 	dev = ubr_netlink_dev(info);
-	printk(KERN_NOTICE "Set port %s on %s pvid %u, hello\n", port->name, dev->name, vid);
+	printk(KERN_NOTICE "Set port %s on %s pvid %u, hello\n", port->name, dev->name, pvid);
 	dev_put(dev);
 
 	return 0;
