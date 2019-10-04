@@ -65,7 +65,6 @@ parse_expect() {
 	echo >>p$port.expected
     	shift
     done
-
 }
 
 inject() {
