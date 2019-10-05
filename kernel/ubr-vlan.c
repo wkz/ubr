@@ -38,7 +38,7 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	 * for further processing below.
 	 */
 	if (unlikely(skb_vlan_tag_present(skb))) {
-		if (unlikely(skb->vlan_proto != ubr->vlan_proto)) {
+		if (unlikely(htons(skb->vlan_proto) != ubr->vlan_proto)) {
 			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
 							skb_vlan_tag_get(skb));
 			if (unlikely(!skb))
@@ -54,11 +54,16 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	if (tagged)
 		cb->vlan = ubr_vlan_find(ubr, vid);
 
+	/*
+	 * Untagged or priority tagged packet on port with no default
+	 * vlan (PVID), or tagged packet with a VID not configured on
+	 * this bridge, or PVID does not have a VLAN (yet). Drop.
+	 */
 	if (unlikely(!cb->vlan))
-		/* Untagged or priority tagged packet on port with no
-		 * default vlan (PVID), or tagged packet with a VID
-		 * not configured on this bridge. Drop. */
 		return false;
+
+	if (!tagged)
+		__vlan_hwaccel_put_tag(skb, htons(ubr->vlan_proto), cb->vlan->vid);
 
  	return ubr_vec_test(&cb->vlan->members, cb->pidx);
 }

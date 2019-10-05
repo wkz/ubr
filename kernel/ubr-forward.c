@@ -1,16 +1,34 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 
 #include "ubr-private.h"
 
 static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int pidx)
 {
 	struct ethhdr *eth = eth_hdr(skb);
+	struct ubr_cb *cb = ubr_cb(skb);
 
 	skb->dev = ubr->ports[pidx].dev;
 
 	if (pidx) {
+		int depth;
+
 		skb_push(skb, ETH_HLEN);
+
+		if (cb->vlan) {
+			if (ubr_vec_test(&cb->vlan->tagged, pidx))
+				skb_vlan_push(skb, htons(ubr->vlan_proto), skb->vlan_tci);
+			else
+				__vlan_hwaccel_clear_tag(skb);
+		}
+
+		if (!__vlan_get_protocol(skb, skb->protocol, &depth)) {
+			kfree_skb(skb);
+			return;
+		}
+
+		skb_set_network_header(skb, depth);
 		dev_queue_xmit(skb);
 	} else {
 		if (ether_addr_equal(ubr->dev->dev_addr, eth->h_dest))
