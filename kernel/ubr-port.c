@@ -259,6 +259,12 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	cb = &p->ingress_cb;
 	cb->vlan = ubr_vlan_find(ubr, pvid);
 
+	/* Enable VLAN filtering when PVID is set. */
+	if (pvid != 0)
+		cb->vlan_ok = 0;
+	else
+		cb->vlan_ok = 1;
+
 	return 0;
 err:
 	dev_put(dev);
