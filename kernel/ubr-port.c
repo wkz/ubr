@@ -223,7 +223,11 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_PORT_MAX + 1];
 	struct net_device *dev, *port;
+	struct ubr_port *p;
+	struct ubr_cb *cb;
+	struct ubr *ubr;
 	int ifindex;
+	int pidx;
 	u16 pvid = 0;
 	int err;
 
@@ -236,8 +240,27 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		pvid = nla_get_u16(attrs[UBR_NLA_PORT_PVID]);
 
 	dev = ubr_netlink_dev(info);
-	printk(KERN_NOTICE "Set port %s on %s pvid %u, hello\n", port->name, dev->name, pvid);
+	if (!dev)
+		return -EINVAL;
+
+	ubr = netdev_priv(dev);
+	if (!ubr)
+		goto err;
+
+	pidx = ubr_port_find(ubr, port);
+	if (pidx < 0 || pidx >= UBR_MAX_PORTS)
+		goto err;
+
 	dev_put(dev);
 
+	p = &ubr->ports[pidx];
+	p->pvid = pvid;
+
+	cb = &p->ingress_cb;
+	cb->vlan = ubr_vlan_find(ubr, pvid);
+
 	return 0;
+err:
+	dev_put(dev);
+	return -EINVAL;
 }

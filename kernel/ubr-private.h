@@ -165,9 +165,16 @@ struct ubr_vlan {
 	struct rcu_head rcu;
 };
 
+/*
+ * Note: While PVID is a VLAN which does not (yet) exist in the bridge,
+ *       the ingress.cb->vlan is NULL.  This is a poor mans filtering
+ *       for VLAN trunk ports.  When the VLAN is added, or removed, all
+ *       ports with a PVID matching that VLAN must be updated.
+ */
 struct ubr_port {
 	struct net_device *dev;
 	struct ubr_cb ingress_cb;
+	u16 pvid;
 
 	struct rcu_head rcu;
 };

@@ -272,6 +272,24 @@ err:
 	return err;
 }
 
+static void __update_port_vlan(struct ubr *ubr, struct ubr_vlan *vlan, int add)
+{
+	int pidx;
+
+	ubr_vec_foreach(&ubr->busy, pidx) {
+		struct ubr_port *p;
+
+		p = &ubr->ports[pidx];
+		if (p->pvid != vlan->vid)
+			continue;
+
+		if (!add)
+			p->ingress_cb.vlan = NULL;
+		else
+			p->ingress_cb.vlan = vlan;
+	}
+}
+
 int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *attrs[UBR_NLA_VLAN_MAX + 1];
@@ -297,6 +315,8 @@ int ubr_vlan_nl_add_cmd(struct sk_buff *skb, struct genl_info *info)
 	vlan = ubr_vlan_new(ubr, vid, 0, 0);
 	if (IS_ERR(vlan))
 		return PTR_ERR(vlan);
+
+	__update_port_vlan(ubr, vlan, 1);
 
 	return 0;
 }
@@ -325,6 +345,8 @@ int ubr_vlan_nl_del_cmd(struct sk_buff *skb, struct genl_info *info)
 	vlan = ubr_vlan_find(ubr, vid);
 	if (!vlan)
 		return -ENOENT;
+
+	__update_port_vlan(ubr, vlan, 0);
 
 	return ubr_vlan_del(vlan);
 }
