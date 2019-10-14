@@ -236,10 +236,18 @@ static int __init ubr_module_init(void)
 
 	err = ubr_netlink_init(&ubr_dev_ops);
 	if (err)
-		goto err_unreg_notifier;
+		goto err_unreg_rtnl;
+
+	err = ubr_sk_init();
+	if (err)
+		goto err_netlink_exit;
 
 	return 0;
 
+err_netlink_exit:
+	ubr_netlink_exit();
+err_unreg_rtnl:
+	rtnl_link_unregister(&ubr_link_ops);
 err_unreg_notifier:
 	unregister_netdevice_notifier(&ubr_device_notifier);
 err_cache_fini:
@@ -250,6 +258,7 @@ err:
 
 static void __exit ubr_module_cleanup(void)
 {
+	ubr_sk_fini();
 	ubr_netlink_exit();
 	rtnl_link_unregister(&ubr_link_ops);
 	unregister_netdevice_notifier(&ubr_device_notifier);

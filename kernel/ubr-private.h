@@ -7,6 +7,25 @@
 #include <net/rtnetlink.h>
 #include <net/genetlink.h>
 
+/* TODO move to bits/socket.h */
+#define PF_UBR PF_SNA
+#define AF_UBR PF_UBR
+
+/* TODO move to linux/if_ubr.h */
+enum sockaddr_ubr_type {
+	UBR_TYPE_IEEE_GROUP,
+	UBR_TYPE_ETH_TYPE,
+	UBR_TYPE_IPV4_UDP_BC,
+};
+
+struct sockaddr_ubr {
+	__kernel_sa_family_t subr_family;
+
+	int subr_ifindex;
+	int subr_type;
+	int subr_group;
+};
+
 /* TODO move to linux/netdevice.h */
 #define IFF_UBR_PORT (1 << 31)
 static inline bool netif_is_ubr_port(const struct net_device *dev)
@@ -206,6 +225,9 @@ struct ubr {
 #define ubr_from_port(_port) \
 	container_of((_port), struct ubr, ports[(_port)->ingress_cb.pidx])
 
+/* ubr-ctrl.c */
+int __init  ubr_sk_init(void);
+void __exit ubr_sk_fini(void);
 
 /* ubr-dev.c */
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
