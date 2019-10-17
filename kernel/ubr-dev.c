@@ -76,6 +76,14 @@ static const struct net_device_ops ubr_dev_ops = {
 	/* .ndo_features_check	 = passthru_features_check, */
 };
 
+struct ubr *ubr_from_dev(struct net_device *dev)
+{
+	if (dev->netdev_ops != &ubr_dev_ops)
+		return NULL;
+
+	return netdev_priv(dev);
+}
+
 static struct device_type ubr_dev_type = {
 	.name	= "ubr",
 };

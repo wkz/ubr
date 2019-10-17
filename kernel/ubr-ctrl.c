@@ -8,17 +8,48 @@ struct ubr_sk {
 	struct sock sk;
 
 	struct ubr *ubr;
-	enum sockaddr_ubr_proto proto;
-	union {
-		__u8   ieee_group;
-		__be16 eth_type;
-		__be16 udp_dport;
-	} filter;
+	struct sockaddr_ubr_proto proto;
 };
 
 static inline struct ubr_sk *ubr_sk(struct sock *sk)
 {
 	return (struct ubr_sk *)sk;
+}
+
+bool ubr_sk_ingress(struct ubr *ubr, struct sk_buff *skb)
+{
+	struct ubr_sk *usk;
+	struct ethhdr *eth = eth_hdr(skb);
+
+	if (skb->pkt_type == PACKET_MULTICAST &&
+	    atomic_read(ubr->sk.ieee_groups) &&
+	    is_link_local_ether_addr(eth->h_dest)) {
+		usk = ubr_sk_lookup(ubr, UBR_TYPE_IEEE_GROUP, eth->h_dest[5]);
+		if (!usk)
+			/* IEEE Multicast can't possibly match any
+			 * other socket. */
+			return false;
+	} else if (skb->pkt_type == PACKET_BROADCAST &&
+		   atomic_read(ubr->sk.udp_dports) &&
+		   skb->protocol == htons(ETH_P_IP) &&
+		   ip_hdr(skb)->proto == htons(IPPROTO_UDP)) {
+		usk = ubr_sk_lookup(ubr, UBR_TYPE_IPV4_UDP_BC, udp_hdr(skb)->dport);
+	}
+
+	if (!usk) {
+		/* ethtype lookup */
+	}
+
+	if (!usk)
+		return false;
+
+	ubr_sk_rcv(usk, skb);
+	return true;
+}
+
+static int ubr_sk_enable(struct ubr_sk *usk)
+{
+	return 0;
 }
 
 static int ubr_sk_bind(struct socket *sock, struct sockaddr *addr,
@@ -31,7 +62,7 @@ static int ubr_sk_bind(struct socket *sock, struct sockaddr *addr,
 	struct ubr *ubr;
 	int err = 0;
 
-	if (len < sizeof(*subr) || subr->subr_family != PF_UBR)
+	if (addr_len < sizeof(*subr) || subr->subr_family != PF_UBR)
 		return -EINVAL;
 
 	dev = dev_get_by_index(sock_net(sk), subr->subr_ifindex);
@@ -50,6 +81,7 @@ static int ubr_sk_bind(struct socket *sock, struct sockaddr *addr,
 	}
 
 	usk->ubr = ubr;
+	usk->proto = subr->subr_proto;
 unlock:
 	release_sock(sk);
 	return err;
@@ -123,7 +155,6 @@ static int ubr_sk_create(struct net *net, struct socket *sock, int protocol,
 	usk = (struct ubr_sk *)sk;
 	/* init_completion(&po->skb_completion); */
 	sk->sk_family = PF_UBR;
-	usk->proto = (__force __be16)protocol;
 
 	/* err = ubr_sk_alloc_pending(po); */
 	/* if (err) */

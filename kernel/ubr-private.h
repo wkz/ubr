@@ -18,12 +18,26 @@ enum sockaddr_ubr_type {
 	UBR_TYPE_IPV4_UDP_BC,
 };
 
+#define UBR_FLAG_BYPASS_STG  (1 << 0)
+#define UBR_FLAG_BYPASS_SA   (1 << 1)
+#define UBR_FLAG_BYPASS_VLAN (1 << 2)
+
+struct sockaddr_ubr_proto {
+	enum sockaddr_ubr_type type;
+
+	__u32 flags;
+	union {
+		  __u8 ieee_group;
+		__be16 eth_type;
+		__be16 udp_dport;
+	};
+};
+
 struct sockaddr_ubr {
 	__kernel_sa_family_t subr_family;
 
 	int subr_ifindex;
-	int subr_type;
-	int subr_group;
+	struct sockaddr_ubr_proto subr_proto;
 };
 
 /* TODO move to linux/netdevice.h */
@@ -231,6 +245,7 @@ void __exit ubr_sk_fini(void);
 
 /* ubr-dev.c */
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
+struct ubr *ubr_from_dev(struct net_device *dev);
 
 /* ubr-fdb.c */
 void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb);
