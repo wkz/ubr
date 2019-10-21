@@ -53,7 +53,7 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 
 	/* Disable all ingress filtering. */
 	cb->vlan_ok = 1;
-	cb->stp_ok = 1;
+	cb->stg_ok = 1;
 	cb->sa_ok = 1;
 
 	cb->sa_learning = 1;

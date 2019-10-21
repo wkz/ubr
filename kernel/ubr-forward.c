@@ -76,8 +76,8 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 	if (!cb->vlan_ok)
 		cb->vlan_ok = ubr_vlan_ingress(ubr, skb);
 
-	/* if (!cb->stp_ok) */
-	/* 	cb->stp_ok = ubr_stp_ingress(ubr, skb); */
+	/* if (!cb->stg_ok) */
+	/* 	cb->stg_ok = ubr_stp_ingress(ubr, skb); */
 
 	/* if (!cb->sa_ok) */
 	/* 	cb->sa_ok = ubr_fdb_ingress(ubr, skb); */
@@ -88,7 +88,7 @@ void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 	/* 	goto consumed; */
 
 	/* No filtered packets allowed beyond this point. */
-	if (unlikely(!(cb->vlan_ok && cb->stp_ok && cb->sa_ok)))
+	if (unlikely(!(cb->vlan_ok && cb->stg_ok && cb->sa_ok)))
 		goto drop;
 
 	ubr_vec_and(&cb->vec, &cb->vlan->members);

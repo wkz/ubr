@@ -1,9 +1,9 @@
 obj-m := ubr.o
 
 ubr-y += ubr-dev.o
-ubr-y += ubr-ctrl.o
 ubr-y += ubr-fdb.o
 ubr-y += ubr-forward.o
 ubr-y += ubr-netlink.o
 ubr-y += ubr-port.o
+ubr-y += ubr-sk.o
 ubr-y += ubr-vlan.o

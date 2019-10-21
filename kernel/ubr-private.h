@@ -89,7 +89,7 @@ struct ubr_cb {
 	 * always treated as OK for all packets ingressing on that port.
 	 */
 	u32 vlan_ok:1;
-	u32 stp_ok:1;
+	u32 stg_ok:1;
 	u32 sa_ok:1;
 
 	u32 sa_learning:1;
@@ -222,11 +222,19 @@ static inline struct ubr_port *ubr_port_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->rx_handler_data);
 }
 
+struct ubr_sks {
+	atomic_t ieee_groups;
+	atomic_t udp_dports;
+	atomic_t eth_types;
+};
+
 struct ubr {
 	struct net_device *dev;
 
 	struct ubr_vec active;
 	u16 vlan_proto;
+
+	struct ubr_sks sks;
 
 	DECLARE_HASHTABLE(vlans, 8);
 	DECLARE_HASHTABLE(stps, 8);
@@ -239,13 +247,10 @@ struct ubr {
 #define ubr_from_port(_port) \
 	container_of((_port), struct ubr, ports[(_port)->ingress_cb.pidx])
 
-/* ubr-ctrl.c */
-int __init  ubr_sk_init(void);
-void __exit ubr_sk_fini(void);
-
 /* ubr-dev.c */
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
 struct ubr *ubr_from_dev(struct net_device *dev);
+
 
 /* ubr-fdb.c */
 void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb);
@@ -258,14 +263,17 @@ void       ubr_fdb_cache_fini(void);
 
 int ubr_fdb_nl_flush_cmd(struct sk_buff *skb, struct genl_info *info);
 
+
 /* ubr-forward.c */
 void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
+
 
 /* ubr-netlink.c */
 int ubr_netlink_init(const struct net_device_ops *ops);
 int ubr_netlink_exit(void);
 
 struct net_device *ubr_netlink_dev(struct genl_info *info);
+
 
 /* ubr-port.c */
 struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned idx, struct net_device *dev);
@@ -277,6 +285,14 @@ int ubr_port_del(struct ubr *ubr, struct net_device *dev);
 int ubr_port_find(struct ubr *ubr, struct net_device *dev);
 
 int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info);
+
+
+/* ubr-sk.c */
+bool ubr_sk_ingress(struct ubr *ubr, struct sk_buff *skb);
+
+int __init  ubr_sk_init(void);
+void __exit ubr_sk_fini(void);
+
 
 /* ubr-vlan.c */
 bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb);

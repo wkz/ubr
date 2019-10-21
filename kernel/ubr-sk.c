@@ -1,3 +1,5 @@
+#include <linux/ip.h>
+#include <linux/udp.h>
 
 #include <net/sock.h>
 
@@ -16,13 +18,36 @@ static inline struct ubr_sk *ubr_sk(struct sock *sk)
 	return (struct ubr_sk *)sk;
 }
 
+static void ubr_sk_rcv(struct ubr_sk *usk, struct sk_buff *skb)
+{
+	/* TODO */
+	kfree_skb(skb);
+}
+
+static inline bool ubr_sk_eligible(struct ubr_sk *usk, struct sk_buff *skb)
+{
+	struct ubr_cb *cb = ubr_cb(skb);
+	u32 flags = usk->proto.flags;
+
+	return  (cb->vlan_ok || (flags & UBR_FLAG_BYPASS_VLAN)) &&
+		(cb->stg_ok  || (flags & UBR_FLAG_BYPASS_STG)) &&
+		(cb->sa_ok   || (flags & UBR_FLAG_BYPASS_SA));
+		
+}
+
+struct ubr_sk *ubr_sk_lookup(struct ubr *ubr, enum sockaddr_ubr_type type, u32 key)
+{
+	/* TODO */
+	return NULL;
+}
+
 bool ubr_sk_ingress(struct ubr *ubr, struct sk_buff *skb)
 {
+	struct ethhdr *eth = eth_hdr(skb);	
 	struct ubr_sk *usk;
-	struct ethhdr *eth = eth_hdr(skb);
 
 	if (skb->pkt_type == PACKET_MULTICAST &&
-	    atomic_read(ubr->sk.ieee_groups) &&
+	    atomic_read(&ubr->sks.ieee_groups) &&
 	    is_link_local_ether_addr(eth->h_dest)) {
 		usk = ubr_sk_lookup(ubr, UBR_TYPE_IEEE_GROUP, eth->h_dest[5]);
 		if (!usk)
@@ -30,19 +55,19 @@ bool ubr_sk_ingress(struct ubr *ubr, struct sk_buff *skb)
 			 * other socket. */
 			return false;
 	} else if (skb->pkt_type == PACKET_BROADCAST &&
-		   atomic_read(ubr->sk.udp_dports) &&
+		   atomic_read(&ubr->sks.udp_dports) &&
 		   skb->protocol == htons(ETH_P_IP) &&
-		   ip_hdr(skb)->proto == htons(IPPROTO_UDP)) {
-		usk = ubr_sk_lookup(ubr, UBR_TYPE_IPV4_UDP_BC, udp_hdr(skb)->dport);
+		   ip_hdr(skb)->protocol == IPPROTO_UDP) {
+		usk = ubr_sk_lookup(ubr, UBR_TYPE_IPV4_UDP_BC,
+				    udp_hdr(skb)->dest);
 	}
 
-	if (!usk) {
-		/* ethtype lookup */
-	}
+	if (!usk && atomic_read(&ubr->sks.eth_types))
+		usk = ubr_sk_lookup(ubr, UBR_TYPE_ETH_TYPE, skb->protocol);
 
-	if (!usk)
+	if (!usk || !ubr_sk_eligible(usk, skb))
 		return false;
-
+	
 	ubr_sk_rcv(usk, skb);
 	return true;
 }
@@ -82,6 +107,12 @@ static int ubr_sk_bind(struct socket *sock, struct sockaddr *addr,
 
 	usk->ubr = ubr;
 	usk->proto = subr->subr_proto;
+	err = ubr_sk_enable(usk);
+	if (err)
+		goto unlock;
+
+	return 0;
+
 unlock:
 	release_sock(sk);
 	return err;
