@@ -1,6 +1,6 @@
 .PHONY: check shell
 
-KVERSION ?= 5.3
+KVERSION ?= 5.18.5
 KDIR ?= linux-$(KVERSION)
 KARCHIVE ?= $(KDIR).tar.xz
 KURL ?= https://cdn.kernel.org/pub/linux/kernel/v5.x/$(KARCHIVE)

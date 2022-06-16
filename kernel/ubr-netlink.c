@@ -53,18 +53,6 @@ static struct genl_family family = {
 
 static const struct net_device_ops *devops = NULL;
 
-
-int ubr_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
-{
-	u32 maxattr = family.maxattr;
-
-	*attr = genl_family_attrbuf(&family);
-	if (!*attr)
-		return -EOPNOTSUPP;
-
-	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, ubr_nl_policy, NULL);
-}
-
 struct net_device *ubr_netlink_dev(struct genl_info *info)
 {
 	struct net_device *dev;

@@ -220,7 +220,7 @@ static int __init ubr_module_init(void)
 {
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ubr_cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	BUILD_BUG_ON(sizeof(struct ubr_cb) > sizeof_field(struct sk_buff, cb));
 
 	err = ubr_fdb_cache_init();
 	if (err)
