@@ -4,38 +4,46 @@
 
 #include "ubr-private.h"
 
-static void ubr_deliver_one(struct ubr *ubr, struct sk_buff *skb, int pidx)
+static void ubr_common_egress(struct ubr *ubr, struct sk_buff *skb, int pidx)
+{
+	struct ubr_cb *cb = ubr_cb(skb);
+	int depth;
+
+	if (cb->vlan_filtering) {
+		if (ubr_vec_test(&cb->vlan->tagged, pidx))
+			skb_vlan_push(skb, htons(ubr->vlan_proto), skb->vlan_tci);
+		else
+			__vlan_hwaccel_clear_tag(skb);
+	}
+
+	if (!__vlan_get_protocol(skb, skb->protocol, &depth)) {
+		kfree_skb(skb);
+		return;
+	}
+
+	skb_set_network_header(skb, depth);
+}
+
+static void ubr_deliver_up(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ethhdr *eth = eth_hdr(skb);
-	struct ubr_cb *cb = ubr_cb(skb);
 
+	skb->dev = ubr->dev;
+	ubr_common_egress(ubr, skb, 0);
+
+	if (ether_addr_equal(ubr->dev->dev_addr, eth->h_dest))
+		skb->pkt_type = PACKET_HOST;
+
+	netif_receive_skb(skb);
+}
+
+static void ubr_deliver_down(struct ubr *ubr, struct sk_buff *skb, int pidx)
+{
+	skb_push(skb, ETH_HLEN);
 	skb->dev = ubr->ports[pidx].dev;
+	ubr_common_egress(ubr, skb, pidx);
 
-	if (pidx) {
-		int depth;
-
-		skb_push(skb, ETH_HLEN);
-
-		if (cb->vlan) {
-			if (ubr_vec_test(&cb->vlan->tagged, pidx))
-				skb_vlan_push(skb, htons(ubr->vlan_proto), skb->vlan_tci);
-			else
-				__vlan_hwaccel_clear_tag(skb);
-		}
-
-		if (!__vlan_get_protocol(skb, skb->protocol, &depth)) {
-			kfree_skb(skb);
-			return;
-		}
-
-		skb_set_network_header(skb, depth);
-		dev_queue_xmit(skb);
-	} else {
-		if (ether_addr_equal(ubr->dev->dev_addr, eth->h_dest))
-			skb->pkt_type = PACKET_HOST;
-
-		netif_receive_skb(skb);
-	}
+	dev_queue_xmit(skb);
 }
 
 static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
@@ -56,50 +64,53 @@ static void ubr_deliver(struct ubr *ubr, struct sk_buff *skb)
 			goto drop;
 		}
 
-		ubr_deliver_one(ubr, cskb, pidx);
+		ubr_deliver_down(ubr, cskb, pidx);
 	}
 
-	ubr_deliver_one(ubr, skb, first);
-	return;
+	if (first == 0)
+		ubr_deliver_up(ubr, skb);
+	else
+		ubr_deliver_down(ubr, skb, first);
 
+	return;
 drop:
 	kfree_skb(skb);
 }
 
-void ubr_forward(struct ubr *ubr, struct sk_buff *skb)
+/* TODO */
+static bool ubr_ctrl_ingress(struct ubr *ubr, struct sk_buff *skb) { return true; };
+static bool ubr_stp_ingress(struct ubr *ubr, struct sk_buff *skb) { return true; };
+static bool ubr_fdb_ingress(struct ubr *ubr, struct sk_buff *skb) { return true; };
+
+bool ubr_forward(struct ubr *ubr, struct sk_buff *skb)
 {
 	struct ubr_cb *cb = ubr_cb(skb);
+	bool allow;
 
-	/* Run all enabled ingress checks and record the results, but
-	 * don't drop filtered frames until ubr sockets have had a
-	 * chance to trap them. */
-	if (!cb->vlan_ok)
-		cb->vlan_ok = ubr_vlan_ingress(ubr, skb);
+	/* All subsequent stages rely on the frame's VID being known,
+	 * so this must run first.
+	 */
+	allow = ubr_vlan_ingress(ubr, skb);
 
-	/* if (!cb->stp_ok) */
-	/* 	cb->stp_ok = ubr_stp_ingress(ubr, skb); */
+	/* Then run stages can potentially classify the frame as
+	 * control traffic to be trapped.
+	 */
+	allow &= !cb->ctrl && ubr_fdb_forward(&ubr->fdb, skb);
+	allow &= !cb->ctrl && ubr_ctrl_ingress(ubr, skb);
+	if (cb->ctrl) {
+		skb->dev = ubr->dev;
+		return true;
+	}
 
-	/* if (!cb->sa_ok) */
-	/* 	cb->sa_ok = ubr_fdb_ingress(ubr, skb); */
+	/* Now that forward/drop are the only remaining outcomes, we
+	 * can lazily evaluate the remaining stages.
+	 */
+	if (allow &&
+	    ubr_stp_ingress(ubr, skb) &&
+	    ubr_fdb_ingress(ubr, skb))
+		ubr_deliver(ubr, skb);
+	else
+		kfree_skb(skb);
 
-	/* Check if there is an ubr socket that want's to consume this
-	 * packet. */
-	/* if (ubr_ctrl_ingress(ubr, skb)) */
-	/* 	goto consumed; */
-
-	/* No filtered packets allowed beyond this point. */
-	if (unlikely(!(cb->vlan_ok && cb->stp_ok && cb->sa_ok)))
-		goto drop;
-
-	ubr_vec_and(&cb->vec, &cb->vlan->members);
-
-	ubr_fdb_forward(&ubr->fdb, skb);
-	ubr_deliver(ubr, skb);
-
-	return;
-
-drop:
-	kfree(skb);
-/* consumed: */
-	return;
+	return false;
 }

@@ -21,9 +21,10 @@ static rx_handler_result_t ubr_port_rx_handler(struct sk_buff **pskb)
 	struct ubr_cb *cb = ubr_cb(skb);
 
 	memcpy(cb, &p->ingress_cb, sizeof(*cb));
-	ubr_forward(ubr_from_port(p), skb);
 
-	return RX_HANDLER_CONSUMED;
+	return ubr_forward(ubr_from_port(p), skb) ?
+		RX_HANDLER_ANOTHER :
+		RX_HANDLER_CONSUMED;
 }
 
 static void __ubr_port_cleanup(struct rcu_head *head)
@@ -51,11 +52,11 @@ struct ubr_port *ubr_port_init(struct ubr *ubr, unsigned pidx, struct net_device
 	p->dev = dev;
 	cb->pidx = pidx;
 
-	/* Disable all ingress filtering. */
-	cb->vlan_ok = 1;
-	cb->stp_ok = 1;
-	cb->sa_ok = 1;
-
+	/* TODO: false, i.e. "hub" mode is probably the right default
+	 * here if we are to stay true to the "userspace does _all_
+	 * policy" ethos. Once userspace tools are more mature, change
+	 * this.
+	 */
 	cb->sa_learning = 1;
 
 	/* Allow egress on all ports execpt this one. */
@@ -259,12 +260,7 @@ int ubr_port_nl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	cb = &p->ingress_cb;
 	cb->vlan = ubr_vlan_find(ubr, pvid);
 
-	/* Enable VLAN filtering when PVID is set. */
-	if (pvid != 0)
-		cb->vlan_ok = 0;
-	else
-		cb->vlan_ok = 1;
-
+	cb->vlan_filtering = !!pvid;
 	return 0;
 err:
 	dev_put(dev);

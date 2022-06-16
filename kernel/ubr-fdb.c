@@ -133,7 +133,7 @@ static void ubr_fdb_learn(struct ubr_fdb *fdb, struct sk_buff *skb)
 	}
 }
 
-void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb)
+bool ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb)
 {
 	struct ubr_fdb_node *node;
 	struct ubr_fdb_addr key = {};
@@ -168,21 +168,14 @@ lookup:
 			goto flood;
 
 		filter = &node->vec;
-
-		if (unlikely(key.type == UBR_ADDR_IP4 ||
-			     key.type == UBR_ADDR_IP6)) {
-			struct ubr_vec grp_n_routers = node->vec;
-
-			ubr_vec_or(&grp_n_routers, &cb->vlan->routers);
-			ubr_vec_and(&cb->vec, &grp_n_routers);
-			return;
-		}
 	} else {
 	flood:
 		if (is_multicast_ether_addr(eth_hdr(skb)->h_dest)) {
 			if (is_broadcast_ether_addr(eth_hdr(skb)->h_dest))
 				filter = &cb->vlan->bcflood;
 			else
+				/* TODO cb->vlan->ip4mcflood and
+				 * cb->vlan->ip6mcflood */
 				filter = &cb->vlan->mcflood;
 		} else {
 			filter = &cb->vlan->ucflood;
@@ -190,6 +183,7 @@ lookup:
 	}
 
 	ubr_vec_and(&cb->vec, filter);
+	return true;
 }
 
 int ubr_fdb_newlink(struct ubr_fdb *fdb)

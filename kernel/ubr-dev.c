@@ -28,7 +28,14 @@ netdev_tx_t ubr_ndo_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, ETH_HLEN);
 
 	memcpy(cb, &ubr->ports[0].ingress_cb, sizeof(*cb));
-	ubr_forward(ubr, skb);
+
+	if (ubr_forward(ubr, skb)) {
+		/* The forward stage classified the frame as control
+		 * traffic, but the frame originates from the
+		 * host. Weird, but we dutifully loop it back for
+		 * symmetry's sake. */
+		dev_forward_skb(ubr->dev, skb);
+	}
 
 	return NETDEV_TX_OK;
 }

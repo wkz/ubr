@@ -44,29 +44,23 @@ struct ubr_vec {
 #define ubr_vec_foreach(_v, _bit) \
 	for_each_set_bit(_bit, (_v)->bitmap, UBR_MAX_PORTS)
 
-
 /* Control buffer */
 struct ubr_cb {
 	/* Ingress port index */
 	u32 pidx:UBR_MAX_PORTS_SHIFT;
 
-	/*
-	 * Ingress filter results.  Setting these in a port's ingress_cb
-	 * _disables_ the corresponding filter, i.e. the result is
-	 * always treated as OK for all packets ingressing on that port.
-	 */
-	u32 vlan_ok:1;
-	u32 stp_ok:1;
-	u32 sa_ok:1;
-
+	/* Optional stages of the ingress pipeline */
+	u32 vlan_filtering:1;
+	u32 sa_filterning:1;
 	u32 sa_learning:1;
+
+	u32 ctrl:1;
 
 	struct ubr_vlan *vlan;
 
 	struct ubr_vec vec;
 };
 #define ubr_cb(_skb) ((struct ubr_cb *)(_skb)->cb)
-
 
 /* enum ubr_stp_state { */
 /* 	UBR_STP_BLOCKING, */
@@ -155,7 +149,6 @@ struct ubr_vlan {
 	struct ubr_vec members;
 	struct ubr_vec tagged;
 
-	struct ubr_vec routers;
 	struct ubr_vec mcflood;
 	struct ubr_vec bcflood;
 	struct ubr_vec ucflood;
@@ -211,7 +204,7 @@ struct ubr {
 void ubr_update_headroom(struct ubr *ubr, struct net_device *new_dev);
 
 /* ubr-fdb.c */
-void ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb);
+bool ubr_fdb_forward(struct ubr_fdb *fdb, struct sk_buff *skb);
 
 int  ubr_fdb_newlink(struct ubr_fdb *fdb);
 void ubr_fdb_dellink(struct ubr_fdb *fdb);
@@ -222,7 +215,7 @@ void       ubr_fdb_cache_fini(void);
 int ubr_fdb_nl_flush_cmd(struct sk_buff *skb, struct genl_info *info);
 
 /* ubr-forward.c */
-void ubr_forward(struct ubr *ubr, struct sk_buff *skb);
+bool ubr_forward(struct ubr *ubr, struct sk_buff *skb);
 
 /* ubr-netlink.c */
 int ubr_netlink_init(const struct net_device_ops *ops);

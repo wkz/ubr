@@ -17,6 +17,9 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	bool tagged = false;
 	u16 vid = 0;
 
+	if (!cb->vlan_filtering)
+		goto out;
+
 	/*
 	 * This looks weird, but skb_vlan_tag_present() looks for any
 	 * already offloaded VLAN information, not for 0x8100 in the
@@ -65,7 +68,12 @@ bool ubr_vlan_ingress(struct ubr *ubr, struct sk_buff *skb)
 	if (!tagged)
 		__vlan_hwaccel_put_tag(skb, htons(ubr->vlan_proto), cb->vlan->vid);
 
- 	return ubr_vec_test(&cb->vlan->members, cb->pidx);
+ 	if (!ubr_vec_test(&cb->vlan->members, cb->pidx))
+		return false;
+
+out:
+	ubr_vec_and(&cb->vec, &cb->vlan->members);
+	return true;
 }
 
 int ubr_vlan_port_add(struct ubr_vlan *vlan, unsigned pidx, bool tagged)
