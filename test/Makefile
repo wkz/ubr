@@ -25,12 +25,12 @@ root/uml-test.sh: uml-test.sh | root
 root/test.sh: test.sh | root
 	cp $< $@
 
-root/sbin/ubr: | root
-	$(MAKE) -C ../src LDFLAGS=-static clean all
+root/sbin/ubr: ../src | root
+	$(MAKE) -C $< LDFLAGS=-static clean all
 	cp ../src/ubr $@
 
-root/lib/ubr.ko: | root
-	$(MAKE) -C ../kernel KDIR=$(abspath $(KDIR)) ARCH=um clean all
+root/lib/ubr.ko: ../kernel | root
+	$(MAKE) -C $< KDIR=$(abspath $(KDIR)) ARCH=um clean all
 	cp ../kernel/ubr.ko $@
 
 root/usr/src/ubr/src root/usr/src/ubr/kernel: | root
